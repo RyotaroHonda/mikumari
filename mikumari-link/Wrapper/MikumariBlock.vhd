@@ -10,9 +10,9 @@ library mylib;
 use mylib.defCDCM.all;
 use mylib.defMikumari.all;
 
-
 entity MikumariBlock is
   generic (
+    kFamily          : string;
     -- CBT generic -------------------------------------------------------------
     -- CDCM-Mod-Pattern --
     kCdcmModWidth    : integer; -- # of time slices of the CDCM signal
@@ -28,6 +28,7 @@ entity MikumariBlock is
     kFixIdelayTap    : boolean; -- If TRUE, value on tapValueIn is set to IDELAY
     kFreqFastClk     : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk      : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
+    kBitslice0       : boolean;
     -- Encoder/Decoder
     kNumEncodeBits   : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
     -- Master/Slave
@@ -45,7 +46,8 @@ entity MikumariBlock is
     -- System ports -----------------------------------------------------------
     rst           : in std_logic;          -- Asynchronous reset input
     pwrOnRst      : in std_logic;          -- Reset logics driven by clkIndep and clkIdctrl
-    clkSer        : in std_logic;          -- Slow clock
+    clkSerTx      : in std_logic;          -- Slow clock
+    clkSerRx      : in std_logic;          -- Slow clock
     clkPar        : in std_logic;          -- Fast clock
     clkIndep      : in std_logic;          -- Independent clock for monitor in CBT
     clkIdctrl     : in std_logic;          -- Reference clock for IDELAYCTRL (if exist)
@@ -70,6 +72,8 @@ entity MikumariBlock is
     bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
     serdesOffset  : out signed(kWidthSerdesOffset-1 downto 0);
     firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
+    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
 
     -- Mikumari ports -------------------------------------------------------
     linkUp        : out std_logic;         -- MIKUMARI link connection is established
@@ -141,6 +145,7 @@ begin
   u_CbtLane : entity mylib.CbtLane
     generic map
     (
+      kFamily          => kFamily,
       -- CDCM-Mod-Pattern --
       kCdcmModWidth    => kCdcmModWidth,
       -- CDCM-TX --
@@ -155,6 +160,7 @@ begin
       kFixIdelayTap    => kFixIdelayTap,
       kFreqFastClk     => kFreqFastClk,
       kFreqRefClk      => kFreqRefClk,
+      kBitslice0       => kBitslice0,
       -- Encoder/Decoder
       kNumEncodeBits   => kNumEncodeBits,
       -- Master/Slave
@@ -167,7 +173,8 @@ begin
       -- SYSTEM port --
       srst          => sync_reset,
       pwrOnRst      => pwrOnRst,
-      clkSer        => clkSer,
+      clkSerTx      => clkSerTx,
+      clkSerRx      => clkSerRx,
       clkPar        => clkPar,
       clkIndep      => clkIndep,
       clkIdelayRef  => clkIdctrl,
@@ -180,6 +187,8 @@ begin
       bitslipNum    => bitslipNum,
       serdesOffset  => serdesOffset,
       firstBitPatt  => firstBitPatt,
+      cntValueOutInit => cntValueOutInit,
+      cntValueOutSlaveInit => cntValueOutSlaveInit,
 
       -- Error --
       patternErr    => pattern_error,

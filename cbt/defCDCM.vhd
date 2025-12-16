@@ -41,13 +41,20 @@ package defCDCM is
   constant kUndefinedRx       : RxInitStatusType:= "111";
 
   -- IDELAY
+  constant kInitialDelayTime : real:= 1000.0;
   constant kWidthTap        : integer:= 5;
+  --constant kWidthTap        : integer:= 9;
+  constant kCNTVALUEbit     : integer:= 9;
 
   constant kNumTaps         : integer:= 32;
   constant kMaxIdelayCheck  : integer:= 4096; --256;
   constant kSuccThreshold   : integer:= 4000; --230;
+
   --constant kWidthCheckCount : integer:= 8;
+  --constant kLoadWait        : integer:= 4;
   constant kLoadWait        : integer:= 4;
+  constant kLoadWait_US     : integer:= 12;     -- 10 + 2 yobi
+  constant kWaitRDY         : integer:= 4096;
 
   constant kAcceptUnstableLength  : integer:= 4;
   constant kMaxRetryWait    : integer:= 65535;
@@ -56,12 +63,43 @@ package defCDCM is
   function GetPlateauLength(tap_delay       : real;
                             freq_fast_clock : real) return integer;
 
+
+  procedure GetPlateauLengthUltrascale(
+    signal  CNTVALUEOUTInit : in std_logic_vector(kCNTVALUEbit-1 downto 0);
+    signal result_out : out integer;
+    freq_fast_clock : real
+  );
+
+
+   type IdelayInitType is (
+    Idle,
+    Init,
+    Read,
+    Check,
+    Done
+   );
+
    type IdelayControlProcessType is (
     Init,
     RetryWait,
     Check,
     NumTrialCheck,
     Increment,
+    Decrement,
+    WaitState,
+    IdelayAdjusted,
+    IdelayFailure
+    );
+
+   type IdelayControlProcessType_US is (
+    Idle,
+    Init,
+    RetryWait,
+    Check,
+    NumTrialCheck,
+    Increment,
+    EnVtcChangeIncrement,
+    EnVtcChangeDecrement,
     Decrement,
     WaitState,
     IdelayAdjusted,
@@ -183,6 +221,7 @@ package body defCDCM is
 
   end GetTapDelay;
 
+
   -- GetPlateauLength ---------------------------------------------------------
   function GetPlateauLength(tap_delay       : real;
                             freq_fast_clock : real) return integer is
@@ -198,6 +237,56 @@ package body defCDCM is
     end if;
     return result;
   end GetPlateauLength;
+
+  procedure GetPlateauLengthUltrascale(
+    signal  CNTVALUEOUTInit : in std_logic_vector(kCNTVALUEbit-1 downto 0);
+    signal result_out : out integer;
+    freq_fast_clock : real
+  ) is
+
+    constant kStableRange          : real:= 0.65;
+    constant kExpectedStableLength : real:= 1.0/(2.0*freq_fast_clock)*1000.0*1000.0*kStableRange; -- [ps]
+    constant kMaxLength            : integer:= 12;
+    variable CNTVALUEOUTInt : integer;
+    variable k32tap_delay : real;
+    variable result : integer;
+  begin
+
+  if CNTVALUEOUTInt /= 0 then
+    k32tap_delay := kInitialDelayTime / (real(CNTVALUEOUTInt) - 54.0) * 32.0 ;
+  else
+    k32tap_delay := 1.0;
+  end if;
+
+  result   :=  integer(kExpectedStableLength/k32tap_delay);
+
+
+    if(result > kMaxLength) then
+      result_out  <= kMaxLength;
+    else
+      result_out <= integer(kExpectedStableLength/k32tap_delay);
+    end if;
+
+  end procedure;
+
+
+  function GetPlateauLengthUltrascale2(CNTVALUEOUTInit       : real;
+                            freq_fast_clock : real) return integer is
+                            -- tap_delay : IDELAY tap delay (ps).
+                            -- freq_fast_clock : Frequency of SERDES fast clock (MHz)
+    constant kStableRange          : real:= 0.65;
+    constant kExpectedStableLength : real:= 1.0/(2.0*freq_fast_clock)*1000.0*1000.0*kStableRange; -- [ps]
+    constant kMaxLength            : integer:= 12;
+
+    -- 32 -->The lower 4 bits are 0.
+    constant k32tap_delay          : real:=  real(kInitialDelayTime) / (CNTVALUEOUTInit * 32.0);
+    variable result                : integer:= integer(kExpectedStableLength/k32tap_delay);
+  begin
+    if(result > kMaxLength) then
+      result  := kMaxLength;
+    end if;
+    return result;
+  end GetPlateauLengthUltrascale2;
 
   -- GetInit1Char -------------------------------------------------------------
   function GetInit1Char(payload_width: integer) return CbtCharType is

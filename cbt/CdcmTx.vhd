@@ -23,6 +23,7 @@ use mylib.defCDCM.all;
 entity CdcmTx is
   generic
   (
+    kFamily        : string;
     kIoStandard    : string;  -- IOSTANDARD of OBUFDS
     kTxPolarity    : boolean; -- true: inverse polarity
     kCdcmModWidth  : integer  -- # of time slices of the CDCM signal
@@ -51,6 +52,13 @@ architecture RTL of CdcmTx is
   signal original_pattern     : CdcmPatternType;
   signal din_oserdes          : CdcmPatternType;
   constant kInverse           : CdcmPatternType:= (others => '1');
+
+--debug
+  attribute mark_debug : boolean;
+  attribute mark_debug of original_pattern : signal is true;
+  attribute mark_debug of selMode : signal is true;
+  attribute mark_debug of srst : signal is true;
+  attribute mark_debug of wfPattern : signal is true;
 
 begin
   -- ======================================================================
@@ -115,31 +123,67 @@ begin
   end generate;
 
   gen_cdcm8 : if kCdcmModWidth = 8 generate
-    u_cdcm_tx_oserdes : entity mylib.Cdcm8TxImpl
-      generic map
-      (-- width of the data for the system
-        kSysW       => kWidthSys,
-        -- width of the data for the device
-        kDevW       => kWidthDev-2,
-        -- IOSTANDARD
-        kIoStandard => kIoStandard
-      )
-      port map
-      (
-        -- From the device out to the system
-        dInFromDevice   => din_oserdes(8 downto 1),
-        dOutToPinP      => TXP,
-        dOutToPinN      => TXN,
 
-        -- Phase Offset --
-        offsetTable     => offsetTable,
-        scanFinished    => open,
+    g_us : if kFamily = "US" generate
+    begin
 
-        -- Clock and reset signals
-        clkIn           => clkSer,
-        clkDivIn        => clkPar,
-        ioReset         => srst
-      );
+      u_cdcm_tx_oserdes : entity mylib.Cdcm8TxImpl_US
+        generic map
+        (-- width of the data for the system
+          kSysW       => kWidthSys,
+          -- width of the data for the device
+          kDevW       => kWidthDev-2,
+          -- IOSTANDARD
+          kIoStandard => kIoStandard
+        )
+        port map
+        (
+          -- From the device out to the system
+          dInFromDevice   => din_oserdes(8 downto 1),
+          dOutToPinP      => TXP,
+          dOutToPinN      => TXN,
+
+          -- Phase Offset --
+          offsetTable     => offsetTable,
+          scanFinished    => open,
+
+          -- Clock and reset signals
+          clkIn           => clkSer,
+          clkDivIn        => clkPar,
+          ioReset         => srst
+        );
+    end generate;
+
+    g_7s : if kFamily = "7S" generate
+    begin
+
+      u_cdcm_tx_oserdes : entity mylib.Cdcm8TxImpl
+        generic map
+        (-- width of the data for the system
+          kSysW       => kWidthSys,
+          -- width of the data for the device
+          kDevW       => kWidthDev-2,
+          -- IOSTANDARD
+          kIoStandard => kIoStandard
+        )
+        port map
+        (
+          -- From the device out to the system
+          dInFromDevice   => din_oserdes(8 downto 1),
+          dOutToPinP      => TXP,
+          dOutToPinN      => TXN,
+
+          -- Phase Offset --
+          offsetTable     => offsetTable,
+          scanFinished    => open,
+
+          -- Clock and reset signals
+          clkIn           => clkSer,
+          clkDivIn        => clkPar,
+          ioReset         => srst
+        );
+    end generate;
+
   end generate;
 
 end RTL;

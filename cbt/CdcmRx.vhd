@@ -53,6 +53,8 @@ entity CdcmRx is
     cdcmUpRx      : out std_logic; -- Indicate that CDCM-RX is ready for communication.
     tapValueOut   : out std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value output
     bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
+    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
 
     -- Error status --
     idelayErr     : out std_logic; -- IDELAY auto adjust was failed.
@@ -135,6 +137,9 @@ begin
   -- ======================================================================
   --                                 body
   -- ======================================================================
+
+  cntValueOutInit <= (others => '0');
+  cntValueOutSlaveInit <= (others => '0');
 
   payloadOut    <= reg_dout_serdes(kPaylowdPos'range);
   tapValueOut   <= tap_value_out;

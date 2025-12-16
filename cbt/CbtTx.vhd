@@ -8,6 +8,7 @@ use mylib.defCDCM.all;
 entity CbtTx is
   generic
   (
+    kFamily          : string;
     -- CDCM-TX --
     kIoStandard      : string;       -- IO standard of OBUFDS
     kCdcmModWidth    : integer;      -- # of time slices of the CDCM signal
@@ -221,10 +222,12 @@ begin
       -- CDCM ports --
       wfPattern   => waveform_pattern
     );
-
+   
+   
   u_cdcm_tx : entity mylib.CdcmTx
     generic map
     (
+      kFamily        => kFamily,
       kIoStandard    => kIoStandard,
       kTxPolarity    => kTxPolarity,
       kCdcmModWidth  => kCdcmModWidth
@@ -243,5 +246,8 @@ begin
       TXN       => cdcmTxn,
       wfPattern => waveform_pattern
     );
+
+
+
 
 end RTL;

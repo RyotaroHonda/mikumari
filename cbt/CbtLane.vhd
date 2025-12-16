@@ -8,6 +8,7 @@ use mylib.defCDCM.all;
 entity CbtLane is
   generic
     (
+      kFamily          : string;
       -- CDCM-Mod-Pattern --
       kCdcmModWidth    : integer; -- # of time slices of the CDCM signal
       -- CDCM-TX --
@@ -22,6 +23,7 @@ entity CbtLane is
       kFixIdelayTap    : boolean; -- If TRUE, value on tapValueIn is set to IDELAY
       kFreqFastClk     : real;    -- Frequency of SERDES fast clock (MHz).
       kFreqRefClk      : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
+      kBitslice0       : boolean;
       -- Encoder/Decoder
       kNumEncodeBits   : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
       -- Master/Slave
@@ -34,7 +36,8 @@ entity CbtLane is
       -- SYSTEM port --
       srst          : in std_logic; -- Reset logics driven by clkPar. Transceiver function reset. (active high)
       pwrOnRst      : in std_logic; -- Reset logics driven by clkIndep and clkIdelayRef. (active high)
-      clkSer        : in std_logic; -- From BUFG (5 x clkPar freq.)
+      clkSerTx      : in std_logic; -- From BUFG (5 x clkPar freq.)
+      clkSerRx      : in std_logic; -- From BUFG (5 x clkPar freq.)
       clkPar        : in std_logic; -- From BUFG
       clkIndep      : in std_logic; -- Independent clock for monitor
       clkIdelayRef  : in std_logic; -- REFCLK input for IDELAYCTRL. Must be independent from clkPar.
@@ -47,6 +50,8 @@ entity CbtLane is
       bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
       serdesOffset  : out signed(kWidthSerdesOffset-1 downto 0);
       firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
+      cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+      cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
 
       -- Error --
       patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
@@ -321,6 +326,7 @@ begin
   u_cbttx : entity mylib.CbtTx
     generic map
     (
+      kFamily          => kFamily,
       -- CDCM-TX --
       kIoStandard      => kIoStandardTx,
       kCdcmModWidth    => kCdcmModWidth,
@@ -335,7 +341,7 @@ begin
     (
       -- SYSTEM port --
       srst        => srst,
-      clkSer      => clkSer,
+      clkSer      => clkSerTx,
       clkPar      => clkPar,
       offsetTable => offset_table,
 
@@ -362,6 +368,7 @@ begin
   u_cbtrx : entity mylib.CbtRx
     generic map
     (
+      kFamily            => kFamily,
       -- CDCM-RX --
       genIDELAYCTRL      => genIDELAYCTRL,
       kDiffTerm          => kDiffTerm,
@@ -372,6 +379,7 @@ begin
       kCdcmModWidth      => kCdcmModWidth,
       kFreqFastClk       => kFreqFastClk,
       kFreqRefClk        => kFreqRefClk,
+      kBitslice0         => kBitslice0,
       -- CDCM decoder --
       kNumEncodeBits     => kNumEncodeBits,
       -- CBT --
@@ -384,7 +392,7 @@ begin
       -- SYSTEM port --
       srst          => srst,
       pwrOnRst      => pwrOnRst,
-      clkSer        => clkSer,
+      clkSer        => clkSerRx,
       clkPar        => clkPar,
       clkIdelayRef  => clkIdelayRef,
       initIn        => init_cdcm_rx,
@@ -396,7 +404,8 @@ begin
       cbtRxUp       => cbt_rx_up,
       tapValueOut   => tapValueOut,
       bitslipNum    => bitslip_num,
-
+      cntValueOutInit => cntValueOutInit,
+      cntValueOutSlaveInit => cntValueOutSlaveInit,
       -- Error --
       patternErr    => patterr_cbtrx,
       idelayErr     => idelayErr,

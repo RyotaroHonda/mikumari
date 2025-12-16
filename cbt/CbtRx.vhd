@@ -8,6 +8,7 @@ use mylib.defCDCM.all;
 entity CbtRx is
   generic
   (
+    kFamily            : string;
     -- CDCM-RX --
     genIDELAYCTRL      : boolean; -- If TRUE, IDELAYCTRL is instantiated.
     kDiffTerm          : boolean; -- IBUF DIFF_TERM
@@ -18,12 +19,15 @@ entity CbtRx is
     kCdcmModWidth      : integer; -- # of time slices of the CDCM signal
     kFreqFastClk       : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk        : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
+    kBitslice0         : boolean;
+
     -- CDCM encoder --
     kNumEncodeBits     : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
     -- CBT --
     kCbtMode           : string;
     -- DEBUG --
     enDEBUG            : boolean:= false
+
   );
   port
   (
@@ -42,7 +46,8 @@ entity CbtRx is
     cbtRxUp       : out std_logic; -- Indicate that CDCM-RX is ready for communication.
     tapValueOut   : out std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value output
     bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
-
+    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
     -- Error --
     patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
     idelayErr     : out std_logic; -- Attempted bitset but the expected pattern was not found.
@@ -63,7 +68,6 @@ entity CbtRx is
     cdcmRxp       : in std_logic; -- Connect to TOPLEVEL port
     cdcmRxn       : in std_logic; -- Connect to TOPLEVEL port
     modClock      : out std_logic -- Modulated clock.
-
   );
 end CbtRx;
 
@@ -123,6 +127,8 @@ architecture RTL of CbtRx is
   attribute mark_debug  of watchdog_timeout      : signal is enDEBUG;
 --  attribute mark_debug  of header_rd             : signal is enDEBUG;
   attribute mark_debug  of valid_out             : signal is enDEBUG;
+  attribute mark_debug  of init_rx      : signal is enDEBUG;
+  attribute mark_debug  of self_init      : signal is enDEBUG;
 
 begin
   -- ======================================================================
@@ -441,6 +447,61 @@ begin
       payloadIn   => payload
     );
 
+
+  g_us : if kFamily = "US" generate
+  begin
+
+  u_cdcm_rx : entity mylib.CdcmRx_US
+    generic map
+    (
+      genIDELAYCTRL      => genIDELAYCTRL,
+      kDiffTerm          => kDiffTerm,
+      kRxPolarity        => kRxPolarity,
+      kIoStandard        => kIoStandard,
+      kIoDelayGroup      => kIoDelayGroup,
+      kFixIdelayTap      => kFixIdelayTap,
+      kCdcmModWidth      => kCdcmModWidth,
+      kFreqFastClk       => kFreqFastClk,
+      kFreqRefClk        => kFreqRefClk,
+      enDEBUG            => enDEBUG,
+      kBitslice0         => kBitslice0
+    )
+    port map
+    (
+      -- SYSTEM port --
+      srst          => srst,
+      pwrOnRst      => pwrOnRst,
+      clkSer        => clkSer,
+      clkPar        => clkPar,
+      clkIdelayRef  => clkIdelayRef,
+      initIn        => init_rx,
+      tapValueIn    => tapValueIn,
+      firstBitPatt  => firstBitPatt,
+
+      -- Status --
+      statusInit    => status_init,
+      cdcmUpRx      => cdcm_rx_up,
+      tapValueOut   => tapValueOut,
+      bitslipNum    => bitslipNum,
+      cntValueOutInit => cntValueOutInit,
+      cntValueOutSlaveInit => cntValueOutSlaveInit,
+
+      -- Error status --
+      idelayErr     => idelayErr,
+      bitslipErr    => bitslipErr,
+      patternErr    => cdcm_patt_error,
+
+      -- CDCM input ports
+      RXP           => cdcmRxp,
+      RXN           => cdcmRxn,
+      modClock      => modClock,
+      payloadOut    => payload
+    );
+end generate;
+
+  g_7s : if kFamily = "7S" generate
+  begin
+
   u_cdcm_rx : entity mylib.CdcmRx
     generic map
     (
@@ -472,6 +533,8 @@ begin
       cdcmUpRx      => cdcm_rx_up,
       tapValueOut   => tapValueOut,
       bitslipNum    => bitslipNum,
+      cntValueOutInit => cntValueOutInit,
+      cntValueOutSlaveInit => cntValueOutSlaveInit,
 
       -- Error status --
       idelayErr     => idelayErr,
@@ -484,5 +547,8 @@ begin
       modClock      => modClock,
       payloadOut    => payload
     );
+end generate;
+
+
 
 end RTL;
