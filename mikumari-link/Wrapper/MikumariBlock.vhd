@@ -12,7 +12,7 @@ use mylib.defMikumari.all;
 
 entity MikumariBlock is
   generic (
-    kFamily          : string;
+    kFamily          : string;  -- 7S: 7 Series, US: UltraScale
     -- CBT generic -------------------------------------------------------------
     -- CDCM-Mod-Pattern --
     kCdcmModWidth    : integer; -- # of time slices of the CDCM signal
@@ -28,7 +28,7 @@ entity MikumariBlock is
     kFixIdelayTap    : boolean; -- If TRUE, value on tapValueIn is set to IDELAY
     kFreqFastClk     : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk      : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
-    kBitslice0       : boolean;
+    kBitslice0       : boolean; -- If true, indicating bit-slice 0 is used
     -- Encoder/Decoder
     kNumEncodeBits   : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
     -- Master/Slave
