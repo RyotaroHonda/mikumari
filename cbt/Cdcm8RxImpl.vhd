@@ -51,6 +51,21 @@ architecture RTL of Cdcm8RxImpl is
   signal rx_output  : std_logic_vector(dOutToDevice'range);
   signal icascade1, icascade2 : std_logic;
   signal mod_clock  : std_logic;
+  signal iserdes_out : std_logic_vector(kDevW-1 downto 0);
+
+ component IserdesBitslip is
+    generic (
+      kDevW      : integer := 8;
+      kSelCount  : integer := 3
+    );
+    port (
+      clkDivIn     : in  std_logic;
+      rst          : in  std_logic;
+      bitslip      : in  std_logic;
+      iserdes_out  : in  std_logic_vector(kDevW-1 downto 0);
+      bitslip_out  : out std_logic_vector(kDevW-1 downto 0)
+    );
+  end component;
 
 begin
   u_Rx_IBUFDS_inst : IBUFDS
@@ -123,7 +138,7 @@ begin
        -- SHIFTOUT1, SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
        SHIFTOUT1 => open,
        SHIFTOUT2 => open,
-       BITSLIP => bitslip,           -- 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+       BITSLIP => '0',           -- 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
                                      -- CLKDIV when asserted (active High). Subsequently, the data seen on the
                                      -- Q1 to Q8 output ports will shift, as in a barrel-shifter operation, one
                                      -- position every time Bitslip is invoked (DDR operation is different from
@@ -151,23 +166,40 @@ begin
        SHIFTIN1 => '0',
        SHIFTIN2 => '0'
     );
-
+  
+  
 
   u_swap : for i in 0 to kDevW-1 generate
     begin
       rx_output(i)   <= iserdes_q(kDevW-i-1);
   end generate;
 
+
+
   gen_invout : if kRxPolarity = TRUE generate
   begin
-      dOutToDevice  <= not rx_output;
+      iserdes_out  <= not rx_output;
       cdOutFromO    <= not mod_clock;
   end generate;
 
   gen_out : if kRxPolarity = FALSE generate
   begin
-      dOutToDevice  <= rx_output;
+      iserdes_out  <= rx_output;
       cdOutFromO    <= mod_clock;
   end generate;
+
+  u_IserdesBitslip : IserdesBitslip
+    generic map (
+      kDevW     => kDevW,
+      kSelCount => 3        
+    )
+    port map (
+      clkDivIn     => clkDivIn,
+      rst          => ioReset,
+      bitslip      => bitslip,
+      iserdes_out  => iserdes_out,
+      bitslip_out  => dOutToDevice
+    );
+
 
 end RTL;

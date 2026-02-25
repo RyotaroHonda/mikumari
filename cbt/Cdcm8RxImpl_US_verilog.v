@@ -422,34 +422,27 @@ endgenerate
     endgenerate
 
     reg [kDevW-1:0] iserdes_out_level2_old;
-    reg [kDevW-1:0] iserdes_out_level2_old2;
 
     always@(posedge clkDivIn)begin
         iserdes_out_level2_old[kDevW-1:0]  <= iserdes_out_level2[kDevW-1:0] ;
-        iserdes_out_level2_old2[kDevW-1:0]  <= iserdes_out_level2_old[kDevW-1:0] ;
     end
+//-----------------------------------------------------------
+//BitSlip
+//-----------------------------------------------------------
 
-    reg [kSelCount-1:0] sel_MP;
-    always@(posedge clkDivIn)begin
-        if(ioReset)begin
-            sel_MP[kSelCount-1:0] <= 0;
-        end
-        else if(bitslip)begin
-            sel_MP[kSelCount-1:0] <= sel_MP[kSelCount-1:0] + 1'b1;
-        end
-    end
+    IserdesBitslip 
+        #(  .kDevW(kDevW),
+            .kSelCount(kSelCount))  
+    IserdesBitslip(
+        .clkDivIn(clkDivIn),
+        .rst(ioReset),
+        .bitslip(bitslip),
+        .iserdes_out(iserdes_out_level2_old[kDevW-1:0]),
+        .bitslip_out(dOutToDevice[kDevW-1:0])
+    );
 
-    wire [kDevW-1:0] iserdes_out_level3[kDevW-1:0];
 
-    assign iserdes_out_level3[0][kDevW-1:0] = iserdes_out_level2_old[kDevW-1:0];
-    genvar i;
-    generate
-        for (i = 1; i < kDevW; i = i + 1) begin : MP_loop
-            assign iserdes_out_level3[i][kDevW-1:0] = {iserdes_out_level2_old[kDevW-1-i:0],iserdes_out_level2_old2[kDevW-1:kDevW-i]};
-        end
-    endgenerate
-
-    assign dOutToDevice[kDevW-1:0] = iserdes_out_level3[sel_MP][kDevW-1:0];
+    //assign dOutToDevice[kDevW-1:0] = iserdes_out_level3[sel_MP][kDevW-1:0];
 
 
 endmodule

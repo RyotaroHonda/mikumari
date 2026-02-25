@@ -84,8 +84,10 @@ package defCDCM is
     RetryWait,
     Check,
     NumTrialCheck,
+    SearchLeftEdge,
+    SearchRightEdge,
     Increment,
-    Decrement,
+    SetCenter,
     WaitState,
     IdelayAdjusted,
     IdelayFailure
@@ -97,11 +99,12 @@ package defCDCM is
     RetryWait,
     Check,
     NumTrialCheck,
+    SearchLeftEdge,
+    SearchRightEdge,
     Increment,
-    EnVtcChangeIncrement,
-    EnVtcChangeDecrement,
-    Decrement,
+    SetCenter,
     WaitState,
+    EnvtcWait,
     IdelayAdjusted,
     IdelayFailure
     );

@@ -26,7 +26,8 @@ entity CdcmTx is
     kFamily        : string;
     kIoStandard    : string;  -- IOSTANDARD of OBUFDS
     kTxPolarity    : boolean; -- true: inverse polarity
-    kCdcmModWidth  : integer  -- # of time slices of the CDCM signal
+    kCdcmModWidth  : integer; -- # of time slices of the CDCM signal
+    enDEBUG        : boolean   -- Enable debug output
   );
   port
   (
@@ -55,10 +56,10 @@ architecture RTL of CdcmTx is
 
 --debug
   attribute mark_debug : boolean;
-  attribute mark_debug of original_pattern : signal is true;
-  attribute mark_debug of selMode : signal is true;
-  attribute mark_debug of srst : signal is true;
-  attribute mark_debug of wfPattern : signal is true;
+  attribute mark_debug of original_pattern    : signal is enDEBUG;
+  attribute mark_debug of selMode             : signal is enDEBUG;
+  attribute mark_debug of srst                : signal is enDEBUG;
+  attribute mark_debug of wfPattern           : signal is enDEBUG;
 
 begin
   -- ======================================================================

@@ -222,15 +222,16 @@ begin
       -- CDCM ports --
       wfPattern   => waveform_pattern
     );
-   
-   
+
+
   u_cdcm_tx : entity mylib.CdcmTx
     generic map
     (
       kFamily        => kFamily,
       kIoStandard    => kIoStandard,
       kTxPolarity    => kTxPolarity,
-      kCdcmModWidth  => kCdcmModWidth
+      kCdcmModWidth  => kCdcmModWidth,
+      enDEBUG        => enDEBUG
     )
     port map
     (

@@ -94,11 +94,12 @@ architecture RTL of CdcmRx is
   signal tap_value_in         : integer range 0 to kNumTaps-1;
   signal tap_value_out        : std_logic_vector(kWidthTap-1 downto 0);
 
+  signal left_edge_tap       : integer range 0 to kNumTaps-1;
+  signal right_edge_tap      : integer range 0 to kNumTaps-1;
+
   signal en_idelay_check      : std_logic;
   signal idelay_is_adjusted   : std_logic;
   signal state_idelay         : IdelayControlProcessType;
-
-  signal sig_idelay_check     : integer range 0 to kNumTaps;
 
   -- ISERDES --
   signal dout_serdes          : CdcmPatternType;
@@ -106,8 +107,10 @@ architecture RTL of CdcmRx is
   signal prev_data            : CdcmPatternType;
   signal first_bit_pattern    : CdcmPatternType;
 
-  signal success_vector       : std_logic_vector(31 downto 0);
-  signal boudary_vector       : std_logic_vector(31 downto 0);
+  signal success_vector       : std_logic_vector(32 downto 0);
+  signal boudary_vector       : std_logic_vector(32 downto 0);
+  signal island_vector        : std_logic_vector(32 downto 0);
+
   signal reg_prev_serdes_out  : CdcmPatternType;
   signal en_bitslip           : std_logic;
   signal en_idle_check        : std_logic;
@@ -123,12 +126,14 @@ architecture RTL of CdcmRx is
   attribute mark_debug of status_init     : signal is enDEBUG;
   attribute mark_debug of state_bitslip   : signal is enDEBUG;
   attribute mark_debug of state_idelay    : signal is enDEBUG;
-  attribute mark_debug of sig_idelay_check : signal is enDEBUG;
   attribute mark_debug of reg_dout_serdes : signal is enDEBUG;
   attribute mark_debug of tap_value_in    : signal is enDEBUG;
   attribute mark_debug of tap_value_out   : signal is enDEBUG;
-  attribute mark_debug of success_vector   : signal is enDEBUG;
-  attribute mark_debug of boudary_vector   : signal is enDEBUG;
+  attribute mark_debug of success_vector  : signal is enDEBUG;
+  attribute mark_debug of boudary_vector  : signal is enDEBUG;
+  attribute mark_debug of island_vector   : signal is enDEBUG;
+  attribute mark_debug of left_edge_tap   : signal is enDEBUG;
+  attribute mark_debug of right_edge_tap  : signal is enDEBUG;
 
 
 -- debug ---------------------------------------------------------------
@@ -296,7 +301,6 @@ begin
     begin
       if(clkPar'event and clkPar = '1') then
         if(serdes_reset = '1') then
-          sig_idelay_check    <= 0;
 
           elapsed_time        := 0;
 
@@ -358,37 +362,35 @@ begin
   begin
 
     u_idelay_sm : process(clkPar)
-      variable num_idelay_appropriate : integer range 0 to kNumTaps-1;
-      variable num_cont_appropriate   : integer range 0 to kNumTaps-1;
-      variable num_idelay_check       : integer range 0 to kNumTaps;
+      variable index_tap              : integer range -1 to kNumTaps;
       variable elapsed_time           : integer range 0 to kMaxIdelayCheck;
-      variable decrement_count        : integer range 0 to kNumTaps-1;
       variable wait_count             : integer range 0 to kLoadWait;
       variable retry_wait_count       : integer range 0 to kMaxRetryWait;
+      variable island_length          : integer range 0 to kNumTaps;
+      variable checkbit_patt          : std_logic_vector(2 downto 0);
     begin
       if(clkPar'event and clkPar = '1') then
         if(serdes_reset = '1') then
-          elapsed_time            := 0;
-          num_idelay_appropriate  := 0;
-          num_cont_appropriate    := 0;
-          num_idelay_check        := 0;
-          decrement_count         := 0;
-          retry_wait_count        := kMaxRetryWait;
+--          elapsed_time        := 0;
+--          index_tap           := 0;
+          retry_wait_count    := kMaxRetryWait;
+--          island_length       := 0;
 
-          en_idelay_check     <= '0';
-          tap_value_in        <= 0;
-          idelay_tap_load     <= '0';
-
-          success_vector      <= (others => '0');
-          boudary_vector      <= (others => '0');
-          reg_prev_serdes_out <= (others => '0');
+--          en_idelay_check     <= '0';
+--          tap_value_in        <= 0;
+--          idelay_tap_load     <= '0';
+--
+--          success_vector      <= (others => '0');
+--          boudary_vector      <= (others => '0');
+--          island_vector       <= (others => '0');
+--          reg_prev_serdes_out <= (others => '0');
           idelay_is_adjusted  <= '0';
           state_idelay        <= Init;
         else
           case state_idelay is
             when Init =>
-              en_idelay_check   <= '1';
-              state_idelay      <= Check;
+              --en_idelay_check   <= '1';
+              state_idelay      <= RetryWait;
 
             when RetryWait =>
               retry_wait_count  := retry_wait_count -1;
@@ -397,10 +399,8 @@ begin
                 state_idelay        <= Check;
               else
                 elapsed_time            := 0;
-                num_idelay_appropriate  := 0;
-                num_cont_appropriate    := 0;
-                num_idelay_check        := 0;
-                decrement_count         := 0;
+                index_tap               := 0;
+                island_length           := 0;
 
                 en_idelay_check     <= '0';
                 tap_value_in        <= 0;
@@ -408,6 +408,7 @@ begin
 
                 success_vector      <= (others => '0');
                 boudary_vector      <= (others => '0');
+                island_vector       <= (others => '0');
                 reg_prev_serdes_out <= (others => '0');
                 idelay_is_adjusted  <= '0';
               end if;
@@ -416,50 +417,41 @@ begin
               idelay_tap_load   <= '0';
               elapsed_time      := elapsed_time +1;
               if(idelay_check_count = kSuccThreshold) then
-                success_vector(tap_value_in)  <= '1';
-                if(unsigned(reg_prev_serdes_out) = 0 or reg_prev_serdes_out = reg_dout_serdes) then
-                  num_idelay_appropriate  := num_idelay_appropriate + 1;
-                  num_idelay_check        := num_idelay_check + 1;
-                  num_cont_appropriate    := 0;
+                success_vector(tap_value_in+1)  <= '1';
 
-                  boudary_vector(tap_value_in)  <= '0';
+                if(tap_value_in /= 0 and (success_vector(tap_value_in) = '0' or reg_prev_serdes_out /= reg_dout_serdes)) then
+                  -- Reached to the boundary of the region --
+                  boudary_vector(tap_value_in+1)  <= '1';
+                  island_vector(tap_value_in+1)   <= not island_vector(tap_value_in);
+
                   reg_prev_serdes_out     <= reg_dout_serdes;
                   en_idelay_check         <= '0';
                   state_idelay            <= NumTrialCheck;
                 else
-                  -- Time out
-                  num_cont_appropriate    := num_idelay_appropriate;
+                  -- IDELAY tap value is in the stable region --
+                  boudary_vector(tap_value_in+1)  <= '0';
+                  island_vector(tap_value_in+1)   <= island_vector(tap_value_in);
 
-                  boudary_vector(tap_value_in)  <= '1';
                   reg_prev_serdes_out     <= reg_dout_serdes;
-                  num_idelay_appropriate  := 0;
-                  num_idelay_check        := num_idelay_check + 1;
                   en_idelay_check         <= '0';
                   state_idelay            <= NumTrialCheck;
                 end if;
               elsif(elapsed_time  = kMaxIdelayCheck-1) then
-                -- Time out
-                success_vector(tap_value_in)  <= '0';
-                num_cont_appropriate    := num_idelay_appropriate;
+                -- This IDELAY tap setting is not appropriate --
+                success_vector(tap_value_in+1)  <= '0';
+                boudary_vector(tap_value_in+1)  <= '0';
+                island_vector(tap_value_in+1)   <= island_vector(tap_value_in);
 
-                reg_prev_serdes_out     <= (others => '0');
-                num_idelay_appropriate  := 0;
-                num_idelay_check        := num_idelay_check + 1;
+--                reg_prev_serdes_out     <= (others => '0');
                 en_idelay_check         <= '0';
                 state_idelay            <= NumTrialCheck;
               end if;
 
             when NumTrialCheck  =>
               elapsed_time  := 0;
-              if(num_idelay_check = kNumTaps) then
-                state_idelay    <= IdelayFailure;
-              elsif(num_idelay_check = kAcceptUnstableLength and unsigned(success_vector(kAcceptUnstableLength-1 downto 0)) = 0) then
-                retry_wait_count  := kMaxIdelayCheck;
-                state_idelay      <= RetryWait;
-              elsif(num_cont_appropriate >= kPlateauThreshold) then
-            --  elsif(to_integer(unsigned(num_cont_appropriate)) >= kPlateauThreshold) then
-                decrement_count   := integer(num_cont_appropriate/2 +1);
-                state_idelay      <= Decrement;
+              if(tap_value_in = kNumTaps-1) then
+                index_tap       := 0;
+                state_idelay    <= SearchLeftEdge;
               else
                 tap_value_in    <= tap_value_in +1;
                 state_idelay    <= Increment;
@@ -470,14 +462,48 @@ begin
               wait_count      := kLoadWait-1;
               state_idelay    <= WaitState;
 
-            when Decrement =>
-              tap_value_in    <= tap_value_in -1;
-              decrement_count := decrement_count -1;
-              if(decrement_count = 0) then
-                idelay_tap_load     <= '1';
-                wait_count          := kLoadWait-1;
-                state_idelay        <= IdelayAdjusted;
+            when SearchLeftEdge =>
+              checkbit_patt     := success_vector(index_tap+1) &
+                                   boudary_vector(index_tap+1) &
+                                   island_vector(index_tap+1);
+              if(index_tap = kNumTaps) then
+                -- Could not find any appropriate tap value --
+                state_idelay    <= IdelayFailure;
+              elsif(checkbit_patt = "111") then
+                -- Found the left edge of the first plateau --
+                left_edge_tap   <= index_tap;
+                island_length   := 0;
+                index_tap       := index_tap+1;
+                state_idelay    <= SearchRightEdge;
+              else
+                index_tap   := index_tap +1;
               end if;
+
+            when SearchRightEdge =>
+              checkbit_patt     := success_vector(index_tap+1) &
+                                   boudary_vector(index_tap+1) &
+                                   island_vector(index_tap+1);
+              if(index_tap = kNumTaps) then
+                -- Could not find any appropriate tap value --
+                state_idelay    <= IdelayFailure;
+              elsif(checkbit_patt = "101") then
+                -- Inside the plateau --
+                index_tap      := index_tap +1;
+                island_length  := island_length +1;
+              elsif(checkbit_patt /= "101" and island_length > kPlateauThreshold) then
+                -- Found the right edge of the first plateau --
+                right_edge_tap  <= index_tap-1;
+                index_tap       := 0;
+                state_idelay    <= SetCenter;
+              else
+                index_tap   := index_tap +1;
+              end if;
+
+            when SetCenter =>
+              tap_value_in        <= (left_edge_tap + right_edge_tap) / 2;
+              idelay_tap_load     <= '1';
+              wait_count          := kLoadWait-1;
+              state_idelay        <= IdelayAdjusted;
 
             when WaitState =>
               idelay_tap_load <= '0';
@@ -498,23 +524,21 @@ begin
             when IdelayFailure =>
               -- Abnormal state. Should not fall in this state.
               elapsed_time            := 0;
-              num_idelay_appropriate  := 0;
-              num_cont_appropriate    := 0;
-              num_idelay_check        := 0;
-              decrement_count         := 0;
+              index_tap               := 0;
+              retry_wait_count        := kMaxRetryWait;
+              island_length           := 0;
 
               reg_prev_serdes_out     <= (others => '0');
               tap_value_in            <= 0;
               idelay_tap_load         <= '1';
 
-              state_idelay            <= Init;
+              state_idelay            <= RetryWait;
 
             when others =>
               state_idelay  <= Init;
 
           end case;
 
-          sig_idelay_check  <= num_idelay_check;
         end if;
       end if;
     end process;
