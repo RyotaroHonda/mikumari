@@ -2,7 +2,7 @@
 
 Official repository of MIKUMARI.
 
-Stable version: 3.1
+Stable version: 3.1.1
 
 [Change log](ChangeLog.md)
 
@@ -22,7 +22,7 @@ Currently, only the AMD FPGAs are supported.
 
 ## Installation
 
-Tested with Vivado 2023.1.1 or before. Please add sources to your Vivado project or use gitsubmodule.
+Tested with Vivado 2025.2 or before. Please add sources to your Vivado project or use gitsubmodule.
 
 ### VHDL-2008
 

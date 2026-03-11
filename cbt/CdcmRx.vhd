@@ -486,11 +486,17 @@ begin
               if(index_tap = kNumTaps) then
                 -- Could not find any appropriate tap value --
                 state_idelay    <= IdelayFailure;
+              elsif(checkbit_patt = "--0") then
+                -- Entered the next island.
+                state_idelay    <= SearchLeftEdge;
               elsif(checkbit_patt = "101") then
                 -- Inside the plateau --
                 index_tap      := index_tap +1;
                 island_length  := island_length +1;
-              elsif(checkbit_patt /= "101" and island_length > kPlateauThreshold) then
+              elsif(checkbit_patt /= "101" and island_length < kPlateauThreshold) then
+                -- The plateau is too narrow. Probably it is not the right one. Look for the next plateau.
+                state_idelay    <= SearchLeftEdge;
+              elsif(checkbit_patt /= "101" and island_length >= kPlateauThreshold) then
                 -- Found the right edge of the first plateau --
                 right_edge_tap  <= index_tap-1;
                 index_tap       := 0;
