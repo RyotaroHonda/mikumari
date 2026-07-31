@@ -44,6 +44,11 @@ entity Cdcm8RxImpl_US is
     cdOutFromO        : out std_logic;
     dOutToDevice      : out std_logic_vector(kDevW-1 downto 0);
     bitslip           : in  std_logic;
+    bitslip_dec       : in  std_logic;
+    bitslipNum        : out std_logic_vector(kSelCount-1 downto 0);
+    cdcmUpRx          : in std_logic;
+    dataOutRxShift    : out std_logic_vector(1 downto 0);
+    
     tapIn             : in  std_logic_vector(4 downto 0);
     tapOut            : out std_logic_vector(4 downto 0);
     CNTVALUEOUT       : out std_logic_vector(kCNTVALUEbit-1 downto 0);
@@ -96,6 +101,10 @@ architecture RTL of Cdcm8RxImpl_US is
         cdOutFromO      : out std_logic;
         dOutToDevice    : out std_logic_vector(kDevW-1 downto 0);
         bitslip         : in  std_logic;
+        bitslip_dec     : in  std_logic;
+        bitslipNum        : out std_logic_vector(kSelCount-1 downto 0);
+        cdcmUpRx          : in std_logic;
+        dataOutRxShift    : out std_logic_vector(1 downto 0);        
         tapIn           : in  std_logic_vector(4 downto 0);
         tapOut          : out std_logic_vector(4 downto 0);
         CNTVALUEOUT     : out std_logic_vector(kCNTVALUEbit-1 downto 0);
@@ -136,6 +145,10 @@ begin
         cdOutFromO      => cdOutFromO,
         dOutToDevice    => dOutToDevice,
         bitslip         => bitslip,
+        bitslip_dec     => bitslip_dec,
+        bitslipNum      => bitslipNum,
+        cdcmUpRx        => cdcmUpRx,
+        dataOutRxShift  => dataOutRxShift,
         tapIn           => tapIn,
         tapOut          => tapOut,
         CNTVALUEOUT     => CNTVALUEOUT,

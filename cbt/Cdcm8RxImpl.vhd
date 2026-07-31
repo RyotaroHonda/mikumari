@@ -14,7 +14,8 @@ entity Cdcm8RxImpl is
     kRxPolarity     : boolean:= FALSE;    -- If true, inverts Rx polarity
     kIoStandard     : string:= "LVDS";    -- IOSTANDARD of OBUFDS
     kIoDelayGroup   : string:= "cdcm_rx"; -- IODELAY_GROUP
-    kFreqRefClk     : real                -- Frequency of refclk for IDELAYCTRL (MHz).
+    kFreqRefClk     : real;                -- Frequency of refclk for IDELAYCTRL (MHz).
+    kSelCount       : integer := 3
   );
   port
   (
@@ -33,6 +34,10 @@ entity Cdcm8RxImpl is
     cdOutFromO      : out std_logic;
     dOutToDevice    : out std_logic_vector(kDevW-1 downto 0);
     bitslip         : in std_logic;
+    bitslip_dec     : in std_logic;
+    bitslipNum      : out std_logic_vector(kSelCount-1 downto 0);
+    cdcmUpRx        : in std_logic;
+    dataOutRxShift  : out std_logic_vector(1 downto 0);
 
     -- Clock and reset
     clkIn           : in std_logic;
@@ -62,8 +67,12 @@ architecture RTL of Cdcm8RxImpl is
       clkDivIn     : in  std_logic;
       rst          : in  std_logic;
       bitslip      : in  std_logic;
+      bitslip_dec  : in  std_logic;
+      bitslipNum   : out std_logic_vector(kSelCount-1 downto 0);
       iserdes_out  : in  std_logic_vector(kDevW-1 downto 0);
-      bitslip_out  : out std_logic_vector(kDevW-1 downto 0)
+      bitslip_out  : out std_logic_vector(kDevW-1 downto 0);
+      cdcmUpRx     : in  std_logic;
+      dataOutRxShift  : out std_logic_vector(1 downto 0)
     );
   end component;
 
@@ -191,14 +200,18 @@ begin
   u_IserdesBitslip : IserdesBitslip
     generic map (
       kDevW     => kDevW,
-      kSelCount => 3        
+      kSelCount => kSelCount        
     )
     port map (
       clkDivIn     => clkDivIn,
       rst          => ioReset,
       bitslip      => bitslip,
+      bitslip_dec  => bitslip_dec,
+      bitslipNum   => bitslipNum,
       iserdes_out  => iserdes_out,
-      bitslip_out  => dOutToDevice
+      bitslip_out  => dOutToDevice,
+      cdcmUpRx     => cdcmUpRx,
+      dataOutRxShift  => dataOutRxShift
     );
 
 

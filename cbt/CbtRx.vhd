@@ -41,6 +41,12 @@ entity CbtRx is
     tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
     firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
 
+    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+    reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
+    shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
+    dataOutRxShift : out std_logic_vector(kDataOutRxShiftBits-1 downto 0);
+    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);
+
     -- Status --
     decoderReady  : out std_logic;
     cbtRxUp       : out std_logic; -- Indicate that CDCM-RX is ready for communication.
@@ -90,10 +96,24 @@ architecture RTL of CbtRx is
   signal watchdog_timeout     : std_logic;
   signal reg_watchdog_timeout : std_logic;
 
+  -- Re-adjustment control --
+  constant kNumRestart        : integer:= 16;
+  constant kNumShutOffDelay   : integer:= 10;
+  constant kNumRetry          : integer:= 16#FFFF#;
+  signal req_shutoff          : std_logic;
+  signal ack_shutoff          : std_logic;
+  --signal shutoff_ready        : std_logic;
+
+  signal readjust_req         : std_logic;
+  signal permit_readjust      : std_logic;
+  signal readjust_done        : std_logic;
+
+
   -- Decoder --
   constant kNumInitTimeOut  : integer:= 16#FFFFFF#;
   constant kNumDelayInit    : integer:= 10;
   constant kNumMatchCycle   : integer:= 8;
+
   signal char_is_idle, char_is_collapsed, valid_out, decoder_beat   : std_logic;
   signal cbt_char_is_collapsed, cbt_char_is_idle, cbt_char_is_ktype   : std_logic;
   signal cbt_char_valid       : std_logic;
@@ -129,6 +149,14 @@ architecture RTL of CbtRx is
   attribute mark_debug  of valid_out             : signal is enDEBUG;
   attribute mark_debug  of init_rx      : signal is enDEBUG;
   attribute mark_debug  of self_init      : signal is enDEBUG;
+  attribute mark_debug  of req_shutoff      : signal is enDEBUG;
+  attribute mark_debug  of ack_shutoff          : signal is enDEBUG;
+  attribute mark_debug  of readjust_req         : signal is enDEBUG;
+  attribute mark_debug  of readjust_done        : signal is enDEBUG;
+  attribute mark_debug  of permit_readjust      : signal is enDEBUG;
+  attribute mark_debug  of decoder_beat      : signal is enDEBUG;
+  
+  
 
 begin
   -- ======================================================================
@@ -148,6 +176,9 @@ begin
   validOut  <= cbt_char_valid;
 
   instRx    <= back_ch_inst;
+
+  reqShutOffOut <= req_shutoff;
+  ack_shutoff   <= shutOffAckIn;
 
   raw_reset_sm  <= srst or init_rx;
   reset_sm      <= reset_sm_sr(kWidthResetSmSr-1);
@@ -247,17 +278,24 @@ begin
       variable match_count    : integer range 0 to kNumMatchCycle+1;
       variable initial_timer  : integer range 0 to kNumInitTimeOut+1;
       variable delay_count    : integer range 0 to kNumDelayInit+1;
+      variable restart_count  : integer range 0 to kNumRestart+1;
+      variable retry_count    : integer range 0 to kNumRetry+1;
     begin
       if(clkPar'event and clkPar = '1') then
         if(reset_sm = '1') then
           match_count       := 0;
+          initial_timer     := kNumInitTimeOut;
+          delay_count       := kNumDelayInit;
+          restart_count     := kNumRestart;
+          retry_count       := kNumRetry;
           cbt_rx_up         <= '0';
           enable_bit_align  <= '0';
           self_init         <= '0';
+          req_shutoff       <= '0';
+          permit_readjust   <= '0';
+          --shutoff_ready     <= '0';
+
           back_ch_inst      <= SendIdle;
-          initial_timer     := kNumInitTimeOut;
-          delay_count       := kNumDelayInit;
-          --back_ch_inst      <= SendZero;
         else
           case back_ch_inst is
 --            when SendZero =>
@@ -302,6 +340,7 @@ begin
               end if;
 
               if(match_count = kNumMatchCycle) then
+                delay_count   := kNumShutOffDelay;
                 back_ch_inst <= StateCbtRxUp;
               elsif(initial_timer = 0) then
                 self_init     <= '1';
@@ -311,6 +350,56 @@ begin
 
             when StateCbtRxUp  =>
               cbt_rx_up   <= '1';
+
+              if(readjust_req = '1') then
+                req_shutoff     <= '1';
+              end if;
+
+              if(ack_shutoff = '1' and req_shutoff = '1' and decoder_beat = '1') then
+                delay_count       := delay_count -1;
+              end if;
+
+              if(delay_count = 0) then
+                delay_count     := kNumShutOffDelay;
+                retry_count     := kNumRetry;
+                back_ch_inst    <= TempShutOff;
+              end if;
+
+            when TempShutOff =>
+              if(decoder_beat = '1') then
+                retry_count       := retry_count -1;
+              end if;
+
+              if(retry_count = 0) then
+                --shutoff_ready   <= '0';
+                restart_count   := kNumRestart;
+                back_ch_inst    <= RestartComm;
+              elsif(valid_out = '1' and character_out = kTTypeCharShutOff) then
+                --shutoff_ready <= '0';
+                back_ch_inst  <= ReAdjust;
+              end if;
+
+            when ReAdjust =>
+              permit_readjust <= '1';
+
+              if(readjust_done = '1') then
+                permit_readjust <= '0';
+                match_count     := 0;
+                restart_count   := kNumRestart;
+                back_ch_inst    <= RestartComm;
+              end if;
+
+            when RestartComm =>
+              if(decoder_beat = '1') then
+                restart_count := restart_count -1;
+              end if;
+
+              if(restart_count = 0) then
+                delay_count     := kNumShutOffDelay;
+                req_shutoff     <= '0';
+                back_ch_inst    <= StateCbtRxUp;
+              end if;
+
 
             when DelayReinit =>
               delay_count := delay_count -1;
@@ -341,6 +430,7 @@ begin
           cbt_rx_up         <= '0';
           enable_bit_align  <= '0';
           self_init         <= '0';
+          req_shutoff       <= '0';
           initial_timer     := kNumInitTimeOut;
           delay_count       := kNumDelayInit;
           back_ch_inst      <= SendZero;
@@ -391,7 +481,8 @@ begin
               end if;
 
               if(match_count = kNumMatchCycle) then
-                back_ch_inst <= StateCbtRxUp;
+                delay_count   := kNumShutOffDelay;
+                back_ch_inst  <= StateCbtRxUp;
               elsif(initial_timer = 0) then
                 self_init     <= '1';
                 delay_count   := kNumDelayInit;
@@ -400,6 +491,29 @@ begin
 
             when StateCbtRxUp  =>
               cbt_rx_up   <= '1';
+
+              if(valid_out = '1' and character_out = kTTypeCharShutOff) then
+                req_shutoff   <= '1';
+              end if;
+
+              if(ack_shutoff = '1' and decoder_beat = '1') then
+                delay_count       := delay_count -1;
+              end if;
+
+              if(delay_count = 0) then
+                back_ch_inst      <= TempShutOff;
+              end if;
+
+            when TempShutOff =>
+              if(valid_out = '1' and character_out = kTTypeCharReStart) then
+--                match_count  := match_count +1;
+--              end if;
+
+              --if(match_count = kNumMatchCycle) then
+                delay_count   := kNumShutOffDelay;
+                req_shutoff   <= '0';
+                back_ch_inst      <= StateCbtRxUp;
+              end if;
 
             when DelayReinit =>
               delay_count := delay_count -1;
@@ -463,8 +577,12 @@ begin
       kCdcmModWidth      => kCdcmModWidth,
       kFreqFastClk       => kFreqFastClk,
       kFreqRefClk        => kFreqRefClk,
-      enDEBUG            => enDEBUG,
-      kBitslice0         => kBitslice0
+      kBitslice0         => kBitslice0,
+
+      -- CBT --
+      kCbtMode           => kCbtMode,
+      -- DEBUG --
+      enDEBUG            => enDEBUG
     )
     port map
     (
@@ -477,6 +595,13 @@ begin
       initIn        => init_rx,
       tapValueIn    => tapValueIn,
       firstBitPatt  => firstBitPatt,
+
+      reqIdelayShift => reqIdelayShift,
+
+      reqReAdjustOut  => readjust_req,
+      permitReadjust  => permit_readjust,
+      doneReAdjustOut => readjust_done,
+      delayPerTap   => delayPerTap,
 
       -- Status --
       statusInit    => status_init,
@@ -514,6 +639,10 @@ end generate;
       kCdcmModWidth      => kCdcmModWidth,
       kFreqFastClk       => kFreqFastClk,
       kFreqRefClk        => kFreqRefClk,
+
+      -- CBT --
+      kCbtMode           => kCbtMode,
+      -- DEBUG --
       enDEBUG            => enDEBUG
     )
     port map
@@ -528,6 +657,12 @@ end generate;
       tapValueIn    => tapValueIn,
       firstBitPatt  => firstBitPatt,
 
+      reqIdelayShift => reqIdelayShift,
+      reqReAdjustOut  => readjust_req,
+      permitReadjust  => permit_readjust,
+      doneReAdjustOut => readjust_done,
+      delayPerTap   => delayPerTap,
+
       -- Status --
       statusInit    => status_init,
       cdcmUpRx      => cdcm_rx_up,
@@ -535,6 +670,7 @@ end generate;
       bitslipNum    => bitslipNum,
       cntValueOutInit => cntValueOutInit,
       cntValueOutSlaveInit => cntValueOutSlaveInit,
+      dataOutRxShift  => dataOutRxShift,
 
       -- Error status --
       idelayErr     => idelayErr,

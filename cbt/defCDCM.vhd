@@ -49,6 +49,7 @@ package defCDCM is
   constant kNumTaps         : integer:= 32;
   constant kMaxIdelayCheck  : integer:= 4096; --256;
   constant kSuccThreshold   : integer:= 4000; --230;
+  constant kBitDelayPerTap  : integer:= 16;     
 
   --constant kWidthCheckCount : integer:= 8;
   --constant kLoadWait        : integer:= 4;
@@ -131,6 +132,11 @@ package defCDCM is
   -- Pattern match --
   constant kNumPattMatchCycle : integer:= 16;
 
+  -- Re-adjustment control --
+  subtype  ReqIdelayShiftType is std_logic_vector(1 downto 0);
+  constant kTapIncrease : ReqIdelayShiftType := "01";
+  constant kTapDecrease : ReqIdelayShiftType := "10";
+ 
   -- CBT --------------------------------------------------------------------------------
   -- CBT character : (MSB) 2-bit header + 8-bit data (LSB)
 
@@ -145,10 +151,13 @@ package defCDCM is
   constant kTtype   : CbtHeaderType:= "11";
 
   subtype  CbtCharType is std_logic_vector(kNumCbtCharBits-1 downto 0);
+  constant kTTypeCharDogfood     : CbtCharType:= kTtype & B"0110_1001";
+--  constant kTTypeCharShutOffReq  : CbtCharType:= kTtype & B"0100_1001";
+  constant kTTypeCharShutOff     : CbtCharType:= kTtype & B"1000_1001";
+  constant kTTypeCharReStart     : CbtCharType:= kTtype & B"1000_0101";
   -- For CDCM-10-1.5 --
   constant kTTypeCharInit1_1P5   : CbtCharType:= kTtype & B"0001_0110";
   constant kTTypeCharInit2_1P5   : CbtCharType:= kTtype & B"0010_1001";
-  constant kTTypeCharDogfood     : CbtCharType:= kTtype & B"0110_1001";
   -- For CDCM-10-2.5 --
   constant kTTypeCharInit1_2P5   : CbtCharType:= kTtype & B"0001_0111";
   constant kTTypeCharInit2_2P5   : CbtCharType:= kTtype & B"0010_1000";
@@ -167,12 +176,15 @@ package defCDCM is
     SendTCharI1,
     SendTCharI2,
     StateCbtRxUp,
+    TempShutOff,
+    ReAdjust,
+    RestartComm,
     DelayReinit
   );
 
   -- Watch dog timer --
-  constant kWidthWatchDogTimer  : integer:= 20;
-  constant kMaxWDT              : std_logic_vector(kWidthWatchDogTimer-1 downto 0):= X"FFFFF";
+  constant kWidthWatchDogTimer  : integer:= 22;
+  constant kMaxWDT              : std_logic_vector(kWidthWatchDogTimer-1 downto 0):= (others => '1');
 
   -- RX quality check --
   constant kCheckFrameLength    : integer:= 512;
@@ -181,6 +193,11 @@ package defCDCM is
 
   -- Primary wait --
   constant kWidthInitDelay      : integer:= 18;
+
+  -- dynamic re-adjust---
+  constant kReqIdelayShiftBits   : integer:= 2;
+  constant kDataOutRxShiftBits   : integer:= 2;
+
 
 end package defCDCM;
 -- ----------------------------------------------------------------------------------
