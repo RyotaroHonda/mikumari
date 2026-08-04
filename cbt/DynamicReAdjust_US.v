@@ -34,7 +34,7 @@ module DynamicReAdjust_US(
         bitslip_dec,
         tap_readjust_reset,
         en_vtc_readjust,
-        delay_per_tap        
+        delay_per_tap        //Delay per tap in Idelay (ps)
     );
     
     parameter kFreqFastClk = 500;    //MHz

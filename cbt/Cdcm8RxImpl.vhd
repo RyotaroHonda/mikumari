@@ -37,7 +37,6 @@ entity Cdcm8RxImpl is
     bitslip_dec     : in std_logic;
     bitslipNum      : out std_logic_vector(kSelCount-1 downto 0);
     cdcmUpRx        : in std_logic;
-    dataOutRxShift  : out std_logic_vector(1 downto 0);
 
     -- Clock and reset
     clkIn           : in std_logic;
@@ -71,8 +70,7 @@ architecture RTL of Cdcm8RxImpl is
       bitslipNum   : out std_logic_vector(kSelCount-1 downto 0);
       iserdes_out  : in  std_logic_vector(kDevW-1 downto 0);
       bitslip_out  : out std_logic_vector(kDevW-1 downto 0);
-      cdcmUpRx     : in  std_logic;
-      dataOutRxShift  : out std_logic_vector(1 downto 0)
+      cdcmUpRx     : in  std_logic
     );
   end component;
 
@@ -210,8 +208,7 @@ begin
       bitslipNum   => bitslipNum,
       iserdes_out  => iserdes_out,
       bitslip_out  => dOutToDevice,
-      cdcmUpRx     => cdcmUpRx,
-      dataOutRxShift  => dataOutRxShift
+      cdcmUpRx     => cdcmUpRx
     );
 
 

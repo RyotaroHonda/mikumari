@@ -60,16 +60,15 @@ entity CdcmRx_US is
     reqReAdjustOut  : out std_logic; -- Request signal to the CbtRx to start the re-adjustment process
     permitReadjust  : in std_logic;  -- Permission from CbtRx for the re-adjustment process. Re-adjustment process starts when this signal is high at the rising edge of clkPar
     doneReAdjustOut : out std_logic; -- Indicate that the idelay re-adjustment process is done.
-    dataOutRxShift : out std_logic_vector(kDataOutRxShiftBits-1 downto 0);
-    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);
+    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);  -- Delay per tap in Idelay (ps)
 
     -- Status --
     statusInit    : out RxInitStatusType; -- Status of initialization. Sync with clkPar
     cdcmUpRx      : out std_logic; -- Indicate that CDCM-RX is ready for communication.
     tapValueOut   : out std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value output
     bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
-    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);   -- Initial value of IDELAY (Master) CNTVALUEOUT
+    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
 
     -- Error status --
     idelayErr     : out std_logic; -- IDELAY auto adjust was failed.
@@ -398,7 +397,6 @@ begin
         bitslip_dec       => bitslip_dec,
         bitslipNum        => bitslipNum(kSelCount-1 downto 0),
         cdcmUpRx          => cdcm_rx_up,
-        dataOutRxShift    => dataOutRxShift,
         
         tapIn             => tapin_slv,
         tapOut            => tap_value_out,

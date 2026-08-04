@@ -47,7 +47,7 @@ entity CbtLane is
       reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
       reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
       shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
-      delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);
+      delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
 
       -- Status --
       cbtLaneUp     : out std_logic; -- Indicates that CBT is ready for communication
@@ -55,9 +55,8 @@ entity CbtLane is
       bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
       serdesOffset  : out signed(kWidthSerdesOffset-1 downto 0);
       firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
-      cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-      cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-      dataOutRxShift : out std_logic_vector(kDataOutRxShiftBits-1 downto 0);
+      cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Master) CNTVALUEOUT
+      cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
 
       -- Error --
       patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
@@ -417,7 +416,6 @@ begin
       bitslipNum    => bitslip_num,
       cntValueOutInit => cntValueOutInit,
       cntValueOutSlaveInit => cntValueOutSlaveInit,
-      dataOutRxShift    => dataOutRxShift,
       
       -- Error --
       patternErr    => patterr_cbtrx,

@@ -43,7 +43,6 @@ module Cdcm8RxImpl_US_verilog(
         bitslip_dec,
         bitslipNum,
         cdcmUpRx,
-        dataOutRxShift,
 
         clkIn,
         clkDivIn,
@@ -97,7 +96,6 @@ module Cdcm8RxImpl_US_verilog(
 
     output [kSelCount-1:0]  bitslipNum;
     input                   cdcmUpRx;
-    output [1:0]            dataOutRxShift;
 
     input clkIn;
     input clkDivIn;
@@ -450,8 +448,7 @@ endgenerate
         .bitslipNum(bitslipNum),
         .iserdes_out(iserdes_out_level2_old[kDevW-1:0]),
         .bitslip_out(dOutToDevice[kDevW-1:0]),
-        .cdcmUpRx(cdcmUpRx),
-        .dataOutRxShift(dataOutRxShift)
+        .cdcmUpRx(cdcmUpRx)
     );
 
 

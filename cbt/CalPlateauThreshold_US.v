@@ -25,7 +25,7 @@ module CalPlateauThreshold_US(
         cntValueOutInit,
         cntValueOutSlaveInit,
         plateauThreshold,
-        delayPerTap     //delay time per 1 tap
+        delayPerTap     // Delay per tap in Idelay (ps)
     );
 
     parameter kCNTVALUEbit = 9;

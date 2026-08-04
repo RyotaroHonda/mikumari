@@ -44,16 +44,15 @@ entity CbtRx is
     reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
     reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
     shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
-    dataOutRxShift : out std_logic_vector(kDataOutRxShiftBits-1 downto 0);
-    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);
+    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);  -- Delay per tap in Idelay (ps)
 
     -- Status --
     decoderReady  : out std_logic;
     cbtRxUp       : out std_logic; -- Indicate that CDCM-RX is ready for communication.
     tapValueOut   : out std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value output
     bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
-    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Master) CNTVALUEOUT
+    cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
     -- Error --
     patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
     idelayErr     : out std_logic; -- Attempted bitset but the expected pattern was not found.
@@ -670,7 +669,6 @@ end generate;
       bitslipNum    => bitslipNum,
       cntValueOutInit => cntValueOutInit,
       cntValueOutSlaveInit => cntValueOutSlaveInit,
-      dataOutRxShift  => dataOutRxShift,
 
       -- Error status --
       idelayErr     => idelayErr,

@@ -57,8 +57,7 @@ entity CdcmRx is
     reqReAdjustOut  : out std_logic; -- Request signal to the CbtRx to start the re-adjustment process
     permitReadjust  : in std_logic;  -- Permission from CbtRx for the re-adjustment process. Re-adjustment process starts when this signal is high at the rising edge of clkPar
     doneReAdjustOut : out std_logic; -- Indicate that the idelay re-adjustment process is done.
-    dataOutRxShift : out std_logic_vector(kDataOutRxShiftBits-1 downto 0);
-    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);
+    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
     
     -- Status --
     statusInit    : out RxInitStatusType; -- Status of initialization. Sync with clkPar
@@ -304,7 +303,6 @@ begin
         tapOut            => tap_value_out,
         bitslipNum        => bitslipNum(kSelCount-1 downto 0),
         cdcmUpRx          => cdcm_rx_up,
-        dataOutRxShift    => dataOutRxShift,
 
         -- Clock and reset
         clkIn             => clkSer,

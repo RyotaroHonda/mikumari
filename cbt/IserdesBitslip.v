@@ -28,8 +28,7 @@ module IserdesBitslip(
         bitslipNum,
         iserdes_out,
         bitslip_out,
-        cdcmUpRx,
-        dataOutRxShift
+        cdcmUpRx
     );
     
     parameter kDevW = 8;
@@ -44,7 +43,6 @@ module IserdesBitslip(
     input [kDevW-1:0] iserdes_out;
     output [kDevW-1:0] bitslip_out;
     input cdcmUpRx;
-    output [1:0] dataOutRxShift;
     
     reg [kDevW-1:0] iserdes_out_old;
     always@(posedge clkDivIn)begin
@@ -75,29 +73,7 @@ module IserdesBitslip(
             assign iserdes_out_level3[i][kDevW-1:0] = {iserdes_out[kDevW-1-i:0], iserdes_out_old[kDevW-1:kDevW-i]};
         end
     endgenerate    
-    
-    //assign bitslip_out[kDevW-1:0] = iserdes_out_level3[sel_MP][kDevW-1:0];
-    
-    
-    reg [1:0] reg_dataOutRxShift;
-    
-    localparam shift_up = 2'b01;
-    localparam shift_down = 2'b10;
-
-    always@(posedge clkDivIn)begin
-        if(bitslip && sel_MP[kSelCount-1:0] == (kDevW-1))begin
-            reg_dataOutRxShift <= shift_up;
-        end
-        else if(bitslip_dec && sel_MP[kSelCount-1:0] == 0)begin
-            reg_dataOutRxShift <= shift_down;
-        end
-        else begin
-            reg_dataOutRxShift <= 2'b00;
-        end
-    end
-    
-    assign dataOutRxShift = reg_dataOutRxShift;
-    
+       
     reg [kDevW-1:0] elastic_buffer[7:0];    
     
     always@(posedge clkDivIn)begin
