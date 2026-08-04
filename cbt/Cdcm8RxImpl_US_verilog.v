@@ -66,7 +66,7 @@ module Cdcm8RxImpl_US_verilog(
     parameter kIdelayCtrlclk = 500;
     parameter kCNTVALUEbit = 9;
     parameter kDELAY_VALUE = 1000.0;
-    parameter kBitslice0 = 0;
+    parameter kBitslice0 = 0;   // This is "1" if the RXP and RXN ports are connected to BITSLICE_0.
 
     parameter kCheckCntvalue = 4096;
     parameter kCheckIdelayInit = 65535;

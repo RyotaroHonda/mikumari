@@ -34,7 +34,7 @@ entity CdcmRx_US is
     kCdcmModWidth      : integer; -- # of time slices of the CDCM signal
     kFreqFastClk       : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk        : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
-    kBitslice0         : boolean; -- If you are connecting CbtRx to bit slice #0, set this to TRUE.
+    kBitslice0         : boolean; -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
     kSelCount          : integer := 3;
 
     -- CBT --

@@ -8,7 +8,7 @@ use mylib.defCDCM.all;
 entity CbtTx is
   generic
   (
-    kFamily          : string;
+    kFamily          : string; -- "7S":7-series, "US":UltraScale
     -- CDCM-TX --
     kIoStandard      : string;       -- IO standard of OBUFDS
     kCdcmModWidth    : integer;      -- # of time slices of the CDCM signal

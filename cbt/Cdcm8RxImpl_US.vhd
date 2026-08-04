@@ -24,7 +24,7 @@ entity Cdcm8RxImpl_US is
     kIoStandard   : string:= "LVDS";    -- IOSTANDARD of OBUFDS
     kIoDelayGroup : string:= "cdcm_rx"; -- IODELAY_GROUP
     kFreqRefClk   : real;            -- Frequency of refclk for IDELAYCTRL (MHz).
-    kBitslice0    : boolean   -- Set true if the signal line is connected to the pad on bitslice 0
+    kBitslice0    : boolean   -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
 
   );
   port

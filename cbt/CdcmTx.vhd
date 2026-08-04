@@ -23,7 +23,7 @@ use mylib.defCDCM.all;
 entity CdcmTx is
   generic
   (
-    kFamily        : string;
+    kFamily        : string;  -- "7S":7-series, "US":UltraScale
     kIoStandard    : string;  -- IOSTANDARD of OBUFDS
     kTxPolarity    : boolean; -- true: inverse polarity
     kCdcmModWidth  : integer; -- # of time slices of the CDCM signal

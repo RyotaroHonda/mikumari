@@ -8,7 +8,7 @@ use mylib.defCDCM.all;
 entity CbtRx is
   generic
   (
-    kFamily            : string;
+    kFamily            : string;  -- "7S":7-series, "US":UltraScale
     -- CDCM-RX --
     genIDELAYCTRL      : boolean; -- If TRUE, IDELAYCTRL is instantiated.
     kDiffTerm          : boolean; -- IBUF DIFF_TERM
@@ -19,7 +19,7 @@ entity CbtRx is
     kCdcmModWidth      : integer; -- # of time slices of the CDCM signal
     kFreqFastClk       : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk        : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
-    kBitslice0         : boolean;
+    kBitslice0         : boolean; -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
 
     -- CDCM encoder --
     kNumEncodeBits     : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
