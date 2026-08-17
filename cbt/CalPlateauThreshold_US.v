@@ -24,7 +24,8 @@ module CalPlateauThreshold_US(
         CLK,
         cntValueOutInit,
         cntValueOutSlaveInit,
-        plateauThreshold
+        plateauThreshold,
+        delayPerTap     // Delay per tap in Idelay (ps)
     );
 
     parameter kCNTVALUEbit = 9;
@@ -36,12 +37,13 @@ module CalPlateauThreshold_US(
     parameter kBitPut = 4;      //4bit
     parameter kDivTapShift = 8;       //div_tap -> fractual is 8bit
     parameter kExpectedStableLength = (1.0/(2.0*kFreqFastClk)*1000.0*1000.0*kStableRange);
+    parameter kBitDelayPerTap = 16;
 
     input CLK;
     input [kCNTVALUEbit-1:0] cntValueOutInit;
     input [kCNTVALUEbit-1:0] cntValueOutSlaveInit;
     output [kNumTaps-1:0] plateauThreshold;
-
+    output [kBitDelayPerTap-1:0] delayPerTap;
 
     localparam DELAY_VALUE_width = 16;
     wire [DELAY_VALUE_width-1:0] DELAY_VALUE_set;
@@ -134,5 +136,8 @@ module CalPlateauThreshold_US(
 
     assign plateauThreshold = divider_level2;
 
+    assign delayPerTap[kBitDelayPerTap-1:0] = tap_delay_old[quotient_fractional_width-1] ? //Rounding off
+                                                tap_delay_old[quotient_integer_width-1:quotient_fractional_width] + 1'b1 :    
+                                                tap_delay_old[quotient_integer_width-1:quotient_fractional_width];
 
 endmodule

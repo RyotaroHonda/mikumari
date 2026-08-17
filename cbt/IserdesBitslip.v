@@ -24,18 +24,25 @@ module IserdesBitslip(
         clkDivIn,
         rst,
         bitslip,
+        bitslip_dec,
+        bitslipNum,
         iserdes_out,
-        bitslip_out
+        bitslip_out,
+        cdcmUpRx
     );
     
     parameter kDevW = 8;
     parameter kSelCount = 3;
-    
+    parameter kDataShift_en = 0;    //1->True. 0->False
+            
     input clkDivIn;
     input rst;
     input bitslip;
+    input bitslip_dec;
+    output [kSelCount-1:0] bitslipNum;
     input [kDevW-1:0] iserdes_out;
     output [kDevW-1:0] bitslip_out;
+    input cdcmUpRx;
     
     reg [kDevW-1:0] iserdes_out_old;
     always@(posedge clkDivIn)begin
@@ -50,7 +57,12 @@ module IserdesBitslip(
         else if(bitslip)begin
             sel_MP[kSelCount-1:0] <= sel_MP[kSelCount-1:0] + 1'b1;
         end
+        else if(bitslip_dec)begin
+            sel_MP[kSelCount-1:0] <= sel_MP[kSelCount-1:0] - 1'b1;
+        end          
     end
+
+    assign bitslipNum[kSelCount-1:0] = sel_MP[kSelCount-1:0];
 
     wire [kDevW-1:0] iserdes_out_level3[kDevW-1:0];
 
@@ -61,7 +73,42 @@ module IserdesBitslip(
             assign iserdes_out_level3[i][kDevW-1:0] = {iserdes_out[kDevW-1-i:0], iserdes_out_old[kDevW-1:kDevW-i]};
         end
     endgenerate    
+       
+    reg [kDevW-1:0] elastic_buffer[7:0];    
     
-    assign bitslip_out[kDevW-1:0] = iserdes_out_level3[sel_MP][kDevW-1:0];
+    always@(posedge clkDivIn)begin
+        elastic_buffer[0] <= iserdes_out_level3[sel_MP];
+        elastic_buffer[1] <= elastic_buffer[0];
+        elastic_buffer[2] <= elastic_buffer[1];
+        elastic_buffer[3] <= elastic_buffer[2];
+        elastic_buffer[4] <= elastic_buffer[3];
+        elastic_buffer[5] <= elastic_buffer[4];
+        elastic_buffer[6] <= elastic_buffer[5];
+        elastic_buffer[7] <= elastic_buffer[6];
+    end
     
+    localparam shift_sel_buffer_num = 3;        //3bit
+    localparam sel_buffer_central = 3;      //central of 0~7
+    reg [shift_sel_buffer_num-1:0] shift_sel;
+    
+    
+    always@(posedge clkDivIn)begin
+        if(rst)begin
+            shift_sel <= 3'd0;
+        end
+        else if(cdcmUpRx)begin
+            if(bitslip && sel_MP[kSelCount-1:0] == (kDevW-1))begin
+                shift_sel <= shift_sel + 1'b1;
+            end
+            else if(bitslip_dec && sel_MP[kSelCount-1:0] == 0)begin
+                shift_sel <= shift_sel - 1'b1;
+            end
+        end
+    end  
+    
+    wire [shift_sel_buffer_num-1:0] shift_sel_level2;
+    assign shift_sel_level2 = shift_sel + sel_buffer_central;
+        
+    assign bitslip_out[kDevW-1:0] = elastic_buffer[shift_sel_level2][kDevW-1:0];
+
 endmodule

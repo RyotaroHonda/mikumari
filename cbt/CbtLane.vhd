@@ -8,7 +8,7 @@ use mylib.defCDCM.all;
 entity CbtLane is
   generic
     (
-      kFamily          : string;
+      kFamily          : string; -- "7S":7-series, "US":UltraScale
       -- CDCM-Mod-Pattern --
       kCdcmModWidth    : integer; -- # of time slices of the CDCM signal
       -- CDCM-TX --
@@ -23,7 +23,7 @@ entity CbtLane is
       kFixIdelayTap    : boolean; -- If TRUE, value on tapValueIn is set to IDELAY
       kFreqFastClk     : real;    -- Frequency of SERDES fast clock (MHz).
       kFreqRefClk      : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
-      kBitslice0       : boolean;
+      kBitslice0       : boolean; -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
       -- Encoder/Decoder
       kNumEncodeBits   : integer:= 2;  -- 1:CDCM-10-1.5 or 2:CDCM-10-2.5
       -- Master/Slave
@@ -44,14 +44,19 @@ entity CbtLane is
       initIn        : in std_logic; -- Re-do the initialization process. Sync with clkPar.
       tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
 
+      reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+      reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
+      shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
+      delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
+
       -- Status --
       cbtLaneUp     : out std_logic; -- Indicates that CBT is ready for communication
       tapValueOut   : out std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value output
       bitslipNum    : out std_logic_vector(kWidthBitSlipNum-1 downto 0); -- Number of bitslip made
       serdesOffset  : out signed(kWidthSerdesOffset-1 downto 0);
       firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
-      cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-      cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+      cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Master) CNTVALUEOUT
+      cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
 
       -- Error --
       patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
@@ -399,6 +404,11 @@ begin
       tapValueIn    => tapValueIn,
       firstBitPatt  => firstBitPatt,
 
+      reqIdelayShift => reqIdelayShift,
+      reqShutOffOut => reqShutOffOut,
+      shutOffAckIn  => shutOffAckIn,
+      delayPerTap   => delayPerTap,
+
       -- Status --
       decoderReady  => decoder_bit_aligned,
       cbtRxUp       => cbt_rx_up,
@@ -406,6 +416,7 @@ begin
       bitslipNum    => bitslip_num,
       cntValueOutInit => cntValueOutInit,
       cntValueOutSlaveInit => cntValueOutSlaveInit,
+      
       -- Error --
       patternErr    => patterr_cbtrx,
       idelayErr     => idelayErr,

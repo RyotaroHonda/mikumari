@@ -24,7 +24,7 @@ entity Cdcm8RxImpl_US is
     kIoStandard   : string:= "LVDS";    -- IOSTANDARD of OBUFDS
     kIoDelayGroup : string:= "cdcm_rx"; -- IODELAY_GROUP
     kFreqRefClk   : real;            -- Frequency of refclk for IDELAYCTRL (MHz).
-    kBitslice0    : boolean   -- Set true if the signal line is connected to the pad on bitslice 0
+    kBitslice0    : boolean   -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
 
   );
   port
@@ -44,10 +44,14 @@ entity Cdcm8RxImpl_US is
     cdOutFromO        : out std_logic;
     dOutToDevice      : out std_logic_vector(kDevW-1 downto 0);
     bitslip           : in  std_logic;
+    bitslip_dec       : in  std_logic;
+    bitslipNum        : out std_logic_vector(kSelCount-1 downto 0);
+    cdcmUpRx          : in std_logic;
+    
     tapIn             : in  std_logic_vector(4 downto 0);
     tapOut            : out std_logic_vector(4 downto 0);
-    CNTVALUEOUT       : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-    CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+    CNTVALUEOUT       : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Master) CNTVALUEOUT
+    CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
 
     enVtc             : in  std_logic;
 
@@ -96,6 +100,9 @@ architecture RTL of Cdcm8RxImpl_US is
         cdOutFromO      : out std_logic;
         dOutToDevice    : out std_logic_vector(kDevW-1 downto 0);
         bitslip         : in  std_logic;
+        bitslip_dec     : in  std_logic;
+        bitslipNum        : out std_logic_vector(kSelCount-1 downto 0);
+        cdcmUpRx          : in std_logic;
         tapIn           : in  std_logic_vector(4 downto 0);
         tapOut          : out std_logic_vector(4 downto 0);
         CNTVALUEOUT     : out std_logic_vector(kCNTVALUEbit-1 downto 0);
@@ -136,6 +143,9 @@ begin
         cdOutFromO      => cdOutFromO,
         dOutToDevice    => dOutToDevice,
         bitslip         => bitslip,
+        bitslip_dec     => bitslip_dec,
+        bitslipNum      => bitslipNum,
+        cdcmUpRx        => cdcmUpRx,
         tapIn           => tapIn,
         tapOut          => tapOut,
         CNTVALUEOUT     => CNTVALUEOUT,

@@ -8,7 +8,7 @@ use mylib.defCDCM.all;
 entity CbtTx is
   generic
   (
-    kFamily          : string;
+    kFamily          : string; -- "7S":7-series, "US":UltraScale
     -- CDCM-TX --
     kIoStandard      : string;       -- IO standard of OBUFDS
     kCdcmModWidth    : integer;      -- # of time slices of the CDCM signal
@@ -55,9 +55,23 @@ architecture RTL of CbtTx is
 
   -- Status --
   signal cbt_tx_up    : std_logic;
+  signal cbt_tx_intup : std_logic;
   signal send_ttype_char  : std_logic;
   signal req_send_dogfood : std_logic;
+  --signal req_send_shutoff : std_logic;
   signal dogfood_timer    : std_logic_vector(kWidthWatchDogTimer-1 downto 0);
+
+  function isUpStatus(inst : CbtBackChannelType) return boolean is
+  begin
+    --if(inst = PreShutoff or inst = TempShutOff or  inst = ReAdjust or inst = RestartComm or inst = StateCbtRxUp) then
+    if(inst = TempShutOff or  inst = ReAdjust or inst = RestartComm or inst = StateCbtRxUp) then
+      return true;
+    else
+      return false;
+    end if;
+  end function;
+
+  constant kNumShutOffReqCycle : integer := 128;
 
   -- Data I/F --
   signal encoder_beat    : std_logic;
@@ -93,12 +107,20 @@ begin
   begin
     if(clkPar'event and clkPar = '1') then
       if(srst = '1') then
-        cbt_tx_up   <= '0';
+        cbt_tx_up      <= '0';
+        cbt_tx_intup   <= '0';
       else
-        if(instRx /= StateCbtRxUp) then
+        if(isUpStatus(instRx) = false) then
           cbt_tx_up   <= '0';
         elsif(instRx = StateCbtRxUp and encoder_beat = '1') then
           cbt_tx_up   <= '1';
+        end if;
+
+        --if(not (instRx = StateCbtRxUp or instRx = PreShutOff) ) then
+        if(not (instRx = StateCbtRxUp) ) then
+          cbt_tx_intup   <= '0';
+        elsif(instRx = StateCbtRxUp and encoder_beat = '1') then
+          cbt_tx_intup   <= '1';
         end if;
       end if;
     end if;
@@ -111,8 +133,11 @@ begin
   valid_to_encoder  <= validIn  when(send_ttype_char = '0') else
                       '1'       when(send_ttype_char = '1' and (instRx = SendTCharI1 or
                                                                 instRx = SendTCharI2 or
+                                                                --instRx = PreShutOff or
+                                                                instRx = TempShutOff or
+                                                                instRx = RestartComm or
                                                                 instRx = StateCbtRxUp)) else
-                      '0'       when(send_ttype_char = '1' and (instRx = SendIdle or instRx = SendInitPattern)) else
+                      '0'       when(send_ttype_char = '1' and (instRx = SendIdle or instRx = SendInitPattern or instRx = ReAdjust)) else
                       '0';
 
   -- Select CDCM-TX mode --
@@ -128,6 +153,8 @@ begin
           tx_mode   <= kIdleTx;
         elsif(instRx = SendInitPattern) then
           tx_mode   <= kInitTx;
+        elsif(instRx = ReAdjust) then
+          tx_mode   <= kIdleTx;
         else
           tx_mode   <= kNormalTx;
         end if;
@@ -144,6 +171,12 @@ begin
         ttype_char  <= GetInit1Char(kNumEncodeBits);
       elsif(instRx = SendTCharI2) then
         ttype_char  <= GetInit2Char(kNumEncodeBits);
+--      elsif(instRx = PreShutOff) then
+--        ttype_char  <= kTTypeCharShutOffReq;
+      elsif(instRx = TempShutOff) then
+        ttype_char  <= kTTypeCharShutOff;
+      elsif(instRx = RestartComm) then
+        ttype_char  <= kTTypeCharReStart;
       else
         ttype_char  <= kTTypeCharDogfood;
       end if;
@@ -169,7 +202,8 @@ begin
 --  ktype_char  <= kKtype & dataIn;
 --  dtype_char  <= kDtype & dataIn;
 
-  send_ttype_char   <= (not cbt_tx_up) or (req_send_dogfood and (not isKType));
+  --send_ttype_char   <= (not cbt_tx_intup) or ((req_send_dogfood or req_send_shutoff) and (not isKType));
+  send_ttype_char   <= (not cbt_tx_intup) or (req_send_dogfood and (not isKType));
 
   char_in_encoder   <= ttype_char when(send_ttype_char = '1') else
                        ktype_char when(send_ttype_char = '0' and isKType = '1') else
@@ -182,11 +216,12 @@ begin
       if(srst = '1') then
         req_send_dogfood  <= '0';
       else
-        if(cbt_tx_up = '1') then
+        if(cbt_tx_up = '1' and instRx = StateCbtRxUp) then
           if(encoder_beat = '1') then
             dogfood_timer   <= std_logic_vector(unsigned(dogfood_timer) +1);
 
-            if(dogfood_timer = X"0EFFF") then
+            --if(dogfood_timer = X"0EFFF") then
+            if(unsigned(dogfood_timer) = 16#EFFF#) then
               req_send_dogfood  <= '1';
               dogfood_timer     <= (others => '0');
             elsif(send_ttype_char = '1') then
@@ -200,6 +235,35 @@ begin
       end if;
     end if;
   end process;
+
+
+--  u_req_shutoff : process(clkPar)
+--    variable shutoff_req_timer : integer range 0 to kNumShutOffReqCycle := 0;
+--  begin
+--    if(clkPar'event and clkPar = '1') then
+--      -- Request to send kTTypeCharShutOffReq once per 128 encoder-beat cycles during PreShutoff --
+--      if(srst = '1') then
+--        req_send_shutoff <= '0';
+--        shutoff_req_timer := 0;
+--      else
+--        if(instRx = PreShutOff) then
+--          if(encoder_beat = '1') then
+--            if(shutoff_req_timer = 0) then
+--              req_send_shutoff <= '1';
+--              shutoff_req_timer := kNumShutOffReqCycle -1;
+--            else
+--              req_send_shutoff <= '0';
+--            end if;
+--
+--            shutoff_req_timer := shutoff_req_timer -1;
+--          end if;
+--        else
+--          req_send_shutoff <= '0';
+--          shutoff_req_timer := 0;
+--        end if;
+--      end if;
+--    end if;
+--  end process;
 
   -- Core implementation -----------------------------------------------
   u_encoder : entity mylib.CdcmTxEncoder

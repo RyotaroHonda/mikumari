@@ -34,6 +34,11 @@ entity CdcmRx is
     kCdcmModWidth      : integer; -- # of time slices of the CDCM signal
     kFreqFastClk       : real;    -- Frequency of SERDES fast clock (MHz).
     kFreqRefClk        : real;    -- Frequency of refclk for IDELAYCTRL (MHz).
+    kSelCount          : integer := 3;
+    
+    -- CBT --
+    kCbtMode           : string;
+    --DEBUG --
     enDEBUG            : boolean:= false
   );
   port
@@ -48,6 +53,12 @@ entity CdcmRx is
     tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
     firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
 
+    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+    reqReAdjustOut  : out std_logic; -- Request signal to the CbtRx to start the re-adjustment process
+    permitReadjust  : in std_logic;  -- Permission from CbtRx for the re-adjustment process. Re-adjustment process starts when this signal is high at the rising edge of clkPar
+    doneReAdjustOut : out std_logic; -- Indicate that the idelay re-adjustment process is done.
+    delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
+    
     -- Status --
     statusInit    : out RxInitStatusType; -- Status of initialization. Sync with clkPar
     cdcmUpRx      : out std_logic; -- Indicate that CDCM-RX is ready for communication.
@@ -93,6 +104,7 @@ architecture RTL of CdcmRx is
 
   signal tap_value_in         : integer range 0 to kNumTaps-1;
   signal tap_value_out        : std_logic_vector(kWidthTap-1 downto 0);
+  signal tapin_slv            : std_logic_vector(kWidthTap-1 downto 0);  
 
   signal left_edge_tap       : integer range 0 to kNumTaps-1;
   signal right_edge_tap      : integer range 0 to kNumTaps-1;
@@ -100,7 +112,23 @@ architecture RTL of CdcmRx is
   signal en_idelay_check      : std_logic;
   signal idelay_is_adjusted   : std_logic;
   signal state_idelay         : IdelayControlProcessType;
+  signal state_idelay_prev    : IdelayControlProcessType;
+  signal idelay_load            : std_logic;
+  
 
+  -- Re-adjustment control --
+  signal vio_readjust : std_logic_vector(0 downto 0);
+  signal reg_vio_readjust : std_logic_vector(1 downto 0);
+  
+  signal counter_req            : std_logic_vector(15 downto 0);
+  signal reg_req_idelay_shift   : std_logic_vector(1 downto 0);
+  signal tap_dynamic_set_start  : std_logic;  
+  signal tap_readjust_reset     : std_logic;
+  signal tap_value_set          : integer range 0 to kNumTaps-1;
+  signal tap_value_readjust     : std_logic_vector(kWidthTap-1 downto 0);
+  signal bitslip_inc            : std_logic;
+  signal bitslip_dec            : std_logic;
+    
   -- ISERDES --
   signal dout_serdes          : CdcmPatternType;
   signal reg_dout_serdes      : CdcmPatternType;
@@ -113,11 +141,15 @@ architecture RTL of CdcmRx is
 
   signal reg_prev_serdes_out  : CdcmPatternType;
   signal en_bitslip           : std_logic;
+  signal en_bitslip_all       : std_logic;
   signal en_idle_check        : std_logic;
   signal idle_patt_count      : integer range 0 to kMaxPattCheck;
   signal bit_aligned          : std_logic;
   signal bitslip_failure      : std_logic;
   signal state_bitslip        : BitslipControlProcessType;
+
+   
+
 
   -- IODELAY_GROUP --
   attribute IODELAY_GROUP : string;
@@ -134,10 +166,41 @@ architecture RTL of CdcmRx is
   attribute mark_debug of island_vector   : signal is enDEBUG;
   attribute mark_debug of left_edge_tap   : signal is enDEBUG;
   attribute mark_debug of right_edge_tap  : signal is enDEBUG;
-
+  attribute mark_debug of reqIdelayShift : signal is enDEBUG;
+  attribute mark_debug of tap_value_readjust : signal is enDEBUG;
+  attribute mark_debug of tap_readjust_reset : signal is enDEBUG;
+  attribute mark_debug of idelay_load : signal is enDEBUG;
+  
+  
 
 -- debug ---------------------------------------------------------------
 
+    component DynamicReAdjust
+    generic (
+      kFreqFastClk     : integer := 500;
+      kFreqRefClk      : integer := 200;
+      kCdcmModWidth    : integer := 8;
+      kWaitTime        : integer := 65535;
+      kTapCheckTimeout : integer := 65535;
+      kReqIdelayShiftBits : integer := 2;
+      kWidthTap        : integer := 5
+    );
+    port (
+      clkPar                 : in  std_logic;
+      rst                    : in  std_logic;
+      reqIdelayShift         : in  std_logic_vector(kReqIdelayShiftBits-1 downto 0);
+      reqReAdjustOut         : out std_logic;
+      permitReadjust         : in  std_logic;
+      doneReAdjustOut        : out std_logic;
+      tap_value_out          : in  std_logic_vector(kWidthTap-1 downto 0);
+      tap_value_readjust     : out std_logic_vector(kWidthTap-1 downto 0);
+      cdcm_rx_up             : in  std_logic;
+      bitslip_inc            : out std_logic;
+      bitslip_dec            : out std_logic;
+      tap_readjust_reset     : out std_logic
+    );
+  end component;
+      
 begin
   -- ======================================================================
   --                                 body
@@ -169,6 +232,8 @@ begin
     rst_all   <= srst;
   end generate;
 
+  tapin_slv <= std_logic_vector(to_unsigned(tap_value_set, kWidthTap));
+
   gen_cdcm10 : if kCdcmModWidth = 10 generate
     u_cdcm_rx_iserdes : entity mylib.CdcmRxImpl
       generic map
@@ -191,7 +256,7 @@ begin
         rstIDelay         => idelay_reset,
         ceIDelay          => '0',
         incIDelay         => '1',
-        tapIn             => std_logic_vector(to_unsigned(tap_value_in, kWidthTap)),
+        tapIn             => tapin_slv,
         tapOut            => tap_value_out,
 
         -- ISERDES
@@ -232,9 +297,12 @@ begin
         -- ISERDES
         cdOutFromO        => modClock,
         dOutToDevice      => dout_serdes(8 downto 1),
-        bitslip           => en_bitslip,
-        tapIn             => std_logic_vector(to_unsigned(tap_value_in, kWidthTap)),
+        bitslip           => en_bitslip_all,
+        bitslip_dec       => bitslip_dec,
+        tapIn             => tapin_slv,
         tapOut            => tap_value_out,
+        bitslipNum        => bitslipNum(kSelCount-1 downto 0),
+        cdcmUpRx          => cdcm_rx_up,
 
         -- Clock and reset
         clkIn             => clkSer,
@@ -244,6 +312,8 @@ begin
 
       dout_serdes(0)  <= '1';
       dout_serdes(9)  <= '0';
+      bitslipNum(kWidthBitSlipNum-1) <= '0';
+      
   end generate;
 
   u_bufdout : process(clkPar)
@@ -274,8 +344,9 @@ begin
 
   -- Idelay control -----------------------------------------------------------------
   serdes_reset  <= rst_all or initIn;
-  idelay_reset  <= rst_all or idelay_tap_load;
+  idelay_reset  <= rst_all or idelay_load;
 
+    
   u_idelay_check : process(clkPar)
   begin
     if(clkPar'event and clkPar = '1') then
@@ -551,6 +622,60 @@ begin
 
   end generate;
 
+  -- Idelay Re-adjustment process ------------------------------------------
+  gen_master : if kCbtMode = "Master" generate
+  begin
+
+
+  u_DynamicReAdjust : DynamicReAdjust
+    generic map
+    (
+      kFreqFastClk  => integer(kFreqFastClk),
+      kFreqRefClk    => integer(kFreqRefClk),
+      kCdcmModWidth     => kCdcmModWidth,
+      kReqIdelayShiftBits => kReqIdelayShiftBits,
+      kWidthTap         => kWidthTap
+    )  
+  
+    port map (
+      clkPar              => clkPar,
+      rst                 => srst,
+      reqIdelayShift      => reqIdelayShift,
+      reqReAdjustOut      => reqReAdjustOut,
+      permitReadjust      => permitReadjust,
+      doneReAdjustOut     => doneReAdjustOut,
+      tap_value_out       => tap_value_out,
+      tap_value_readjust       => tap_value_readjust,
+      cdcm_rx_up  => cdcm_rx_up,
+      bitslip_inc         => bitslip_inc,
+      bitslip_dec         => bitslip_dec,
+      tap_readjust_reset => tap_readjust_reset
+    );
+
+    tap_value_set <= to_integer(unsigned(tap_value_readjust)) when (cdcm_rx_up = '1')
+                        else tap_value_in;
+                     
+    idelay_load <= tap_readjust_reset when (cdcm_rx_up = '1')
+                        else idelay_tap_load;                         
+    
+    en_bitslip_all <= bitslip_inc when (cdcm_rx_up = '1')
+                        else en_bitslip;
+
+  end generate;
+
+  gen_slave : if kCbtMode = "Slave" generate
+  begin
+    
+    tap_value_set <= tap_value_in;
+    idelay_load <= idelay_tap_load;                         
+    en_bitslip_all <= en_bitslip; 
+    bitslip_dec <= '0';   
+    reqReAdjustOut <= '0';
+    doneReAdjustOut <= '0';
+    
+  end generate;
+
+  delayPerTap <= std_logic_vector( to_unsigned( integer(GetTapDelay(kFreqRefClk)), kBitDelayPerTap ));
 
   -- Bit Slip --------------------------------------------------------------
   u_check_idle : process(clkPar)
@@ -635,11 +760,12 @@ begin
             state_bitslip     <= Init;
         end case;
 
-        bitslipNum  <= std_logic_vector(to_unsigned(num_patt_check, kWidthBitSlipNum));
+        --bitslipNum  <= std_logic_vector(to_unsigned(num_patt_check, kWidthBitSlipNum));
       end if;
     end if;
 
   end process;
+
 
   -- Status register --------------------------------------------------------------
   -- For initialize process --

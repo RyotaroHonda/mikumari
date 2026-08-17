@@ -40,6 +40,9 @@ module Cdcm8RxImpl_US_verilog(
         cdOutFromO,
         dOutToDevice,
         bitslip,
+        bitslip_dec,
+        bitslipNum,
+        cdcmUpRx,
 
         clkIn,
         clkDivIn,
@@ -63,7 +66,7 @@ module Cdcm8RxImpl_US_verilog(
     parameter kIdelayCtrlclk = 500;
     parameter kCNTVALUEbit = 9;
     parameter kDELAY_VALUE = 1000.0;
-    parameter kBitslice0 = 0;
+    parameter kBitslice0 = 0;   // This is "1" if the RXP and RXN ports are connected to BITSLICE_0.
 
     parameter kCheckCntvalue = 4096;
     parameter kCheckIdelayInit = 65535;
@@ -89,6 +92,10 @@ module Cdcm8RxImpl_US_verilog(
     output cdOutFromO;
     output [kDevW-1:0] dOutToDevice;
     input bitslip;
+    input bitslip_dec;
+
+    output [kSelCount-1:0]  bitslipNum;
+    input                   cdcmUpRx;
 
     input clkIn;
     input clkDivIn;
@@ -437,8 +444,11 @@ endgenerate
         .clkDivIn(clkDivIn),
         .rst(ioReset),
         .bitslip(bitslip),
+        .bitslip_dec(bitslip_dec),
+        .bitslipNum(bitslipNum),
         .iserdes_out(iserdes_out_level2_old[kDevW-1:0]),
-        .bitslip_out(dOutToDevice[kDevW-1:0])
+        .bitslip_out(dOutToDevice[kDevW-1:0]),
+        .cdcmUpRx(cdcmUpRx)
     );
 
 
