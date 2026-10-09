@@ -46,9 +46,9 @@ entity MikumariBlock is
     -- System ports -----------------------------------------------------------
     rst           : in std_logic;          -- Asynchronous reset input
     pwrOnRst      : in std_logic;          -- Reset logics driven by clkIndep and clkIdctrl
-    clkSerTx      : in std_logic;          -- Slow clock
-    clkSerRx      : in std_logic;          -- Slow clock
-    clkPar        : in std_logic;          -- Fast clock
+    clkSerTx      : in std_logic;          -- High-speed serial TX clock (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
+    clkSerRx      : in std_logic;          -- High-speed serial RX clock (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
+    clkPar        : in std_logic;          -- Parallel clock
     clkIndep      : in std_logic;          -- Independent clock for monitor in CBT
     clkIdctrl     : in std_logic;          -- Reference clock for IDELAYCTRL (if exist)
     initIn        : in std_logic;          -- Redo the initialize process
@@ -63,8 +63,8 @@ entity MikumariBlock is
 
     -- CBT ports ------------------------------------------------------------
     laneUp        : out std_logic;         -- CBT link connection is established
-    idelayErr     : out std_logic;         -- Attempted bitslip but the expected pattern was not found.
-    bitslipErr    : out std_logic;         -- Bit pattern which does not match the CDCM rule is detected.
+    idelayErr     : out std_logic;         -- IDELAY adjustment failed.
+    bitslipErr    : out std_logic;         -- SERDES bitslip failed to find the expected pattern.
     pattErr       : out std_logic;         -- CDCM waveform pattern is broken
     watchDogErr   : out std_logic;         -- Watchdog timer alert
 
@@ -75,7 +75,9 @@ entity MikumariBlock is
     cntValueOutInit : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Initial value of IDELAY (Master) CNTVALUEOUT
     cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Initial value of IDELAY (Slave) CNTVALUEOUT
 
-    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No adjustment. "01": Increase delay by one step of tapValueOut.
+      -- "10": Decrease delay by one step of tapValueOut. "11": Reserved.
+      -- At the delay-range boundary, re-adjustment includes a bit-position shift.
     reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
     shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
     delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
@@ -91,7 +93,7 @@ entity MikumariBlock is
 
     pulseIn       : in std_logic;          -- Pulse input. Must be one-shot signal.
     pulseTypeTx   : in MikumariPulseType;  -- 3-bit short message to be sent with pulse.
-    pulseRegTx    : in MikumariHpmRegType; -- 4-bit additional message transferred by the pulse
+    pulseRegTx    : in MikumariHpmRegType; -- 4-bit additional pulse message; used only in High-Precision mode.
     busyPulseTx   : out std_logic;         -- Under transmission of previous pulse. If high, pulseIn is ignored.
 
     -- Data IF RX --
@@ -104,7 +106,7 @@ entity MikumariBlock is
 
     pulseOut      : out std_logic;         -- Reproduced one-shot pulse output.
     pulseTypeRx   : out MikumariPulseType; -- Short message accompanying the pulse.
-    pulseRegRx    : out MikumariHpmRegType -- 4-bit additional message transferred by the pulse
+    pulseRegRx    : out MikumariHpmRegType -- 4-bit additional pulse message; zero in Low-Latency mode.
 
   );
 end MikumariBlock;

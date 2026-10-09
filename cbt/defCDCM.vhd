@@ -223,7 +223,7 @@ package body defCDCM is
 
   -- GetTapDelay --------------------------------------------------------------
   function GetTapDelay(freq_idelayctrl_ref : real) return real is
-    -- Argument : Frequency of refclk for IDELAYCTRL (MHz). Integer number.
+    -- Argument : Frequency of refclk for IDELAYCTRL (MHz). Real number.
     -- Return   : Delay per tap in IDELAY (ps). Real number.
     variable result : real;
   begin

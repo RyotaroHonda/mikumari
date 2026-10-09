@@ -12,7 +12,7 @@ entity Cdcm8RxImpl is
     kDevW           : integer:= 8; -- width of the ata for the device
     kDiffTerm       : boolean:= TRUE;
     kRxPolarity     : boolean:= FALSE;    -- If true, inverts Rx polarity
-    kIoStandard     : string:= "LVDS";    -- IOSTANDARD of OBUFDS
+    kIoStandard     : string:= "LVDS";    -- IOSTANDARD of the differential input buffer
     kIoDelayGroup   : string:= "cdcm_rx"; -- IODELAY_GROUP
     kFreqRefClk     : real;                -- Frequency of refclk for IDELAYCTRL (MHz).
     kSelCount       : integer := 3

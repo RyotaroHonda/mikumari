@@ -34,14 +34,16 @@ entity CbtRx is
     -- SYSTEM port --
     srst          : in std_logic; -- Reset logics driven by clkPar. Transceiver function reset. (active high)
     pwrOnRst      : in std_logic; -- Reset logics driven by clkIndep and clkIdelayRef. (active high)
-    clkSer        : in std_logic; -- From BUFG (5 x clkPar freq.)
+    clkSer        : in std_logic; -- From BUFG (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
     clkPar        : in std_logic; -- From BUFG
     clkIdelayRef  : in std_logic; -- REFCLK input for IDELAYCTRL
     initIn        : in std_logic; -- Re-do the initialization process. Sync with clkPar.
     tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
     firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
 
-    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+    reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No adjustment. "01": Increase delay by one step of tapValueOut.
+      -- "10": Decrease delay by one step of tapValueOut. "11": Reserved.
+      -- At the delay-range boundary, re-adjustment includes a bit-position shift.
     reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
     shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
     delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0);  -- Delay per tap in Idelay (ps)
@@ -55,8 +57,8 @@ entity CbtRx is
     cntValueOutSlaveInit : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
     -- Error --
     patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
-    idelayErr     : out std_logic; -- Attempted bitset but the expected pattern was not found.
-    bitslipErr    : out std_logic; -- Bit pattern which does not match the CDCM rule is detected.
+    idelayErr     : out std_logic; -- IDELAY adjustment failed.
+    bitslipErr    : out std_logic; -- SERDES bitslip failed to find the expected pattern.
     watchDogErr   : out std_logic; -- Watch dog can't eat dogfood within specified time. The other side seems to be down.
 
 

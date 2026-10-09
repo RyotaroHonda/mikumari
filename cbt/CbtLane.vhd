@@ -36,15 +36,17 @@ entity CbtLane is
       -- SYSTEM port --
       srst          : in std_logic; -- Reset logics driven by clkPar. Transceiver function reset. (active high)
       pwrOnRst      : in std_logic; -- Reset logics driven by clkIndep and clkIdelayRef. (active high)
-      clkSerTx      : in std_logic; -- From BUFG (5 x clkPar freq.)
-      clkSerRx      : in std_logic; -- From BUFG (5 x clkPar freq.)
+      clkSerTx      : in std_logic; -- From BUFG (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
+      clkSerRx      : in std_logic; -- From BUFG (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
       clkPar        : in std_logic; -- From BUFG
       clkIndep      : in std_logic; -- Independent clock for monitor
       clkIdelayRef  : in std_logic; -- REFCLK input for IDELAYCTRL. Must be independent from clkPar.
       initIn        : in std_logic; -- Re-do the initialization process. Sync with clkPar.
       tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
 
-      reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+      reqIdelayShift : in std_logic_vector(kReqIdelayShiftBits-1 downto 0); -- "00": No adjustment. "01": Increase delay by one step of tapValueOut.
+      -- "10": Decrease delay by one step of tapValueOut. "11": Reserved.
+      -- At the delay-range boundary, re-adjustment includes a bit-position shift.
       reqShutOffOut : out std_logic; -- Request signal to the upper-layer protocol to shutoff communication.
       shutOffAckIn  : in std_logic; -- Acknowledge signal from the upper-layer protocol for the shutoff request.
       delayPerTap   : out std_logic_vector(kBitDelayPerTap-1 downto 0); -- Delay per tap in Idelay (ps)
@@ -60,8 +62,8 @@ entity CbtLane is
 
       -- Error --
       patternErr    : out std_logic; -- Indicates CDCM waveform pattern is collapsed.
-      idelayErr     : out std_logic; -- Attempted bitslip but the expected pattern was not found.
-      bitslipErr    : out std_logic; -- Bit pattern which does not match the CDCM rule is detected.
+      idelayErr     : out std_logic; -- IDELAY adjustment failed.
+      bitslipErr    : out std_logic; -- SERDES bitslip failed to find the expected pattern.
       watchDogErr   : out std_logic; -- Watch dog can't eat dogfood within specified time. The other side seems to be down.
 
       -- Data I/F --
@@ -103,7 +105,7 @@ architecture RTL of CbtLane is
   signal lane_up_sr       : std_logic_vector(kDelayLaneUp-1 downto 0);
   signal lane_up          : std_logic;
 
-  -- RX quality check (clkIndep domain) --
+  -- RX quality check and initialization (clkPar/clkIndep domains) --
   signal srst_indep       : std_logic;
   signal assert_init_indep, init_indep  : std_logic;
   signal valid_indep, patt_error_indep  : std_logic;
@@ -149,9 +151,10 @@ begin
   -- ======================================================================
 
   -------------------------------------------------------------------------
-  -- clkIndep clock domain
+  -- RX quality check (clkPar) and initialization request (clkIndep)
   -------------------------------------------------------------------------
-  -- RX quality check by independent clock --
+  -- RX quality check in clkPar domain --
+  -- This process reads signals synchronized to clkIndep; the CDC requires separate review.
   u_rx_quality : process(clkPar)
     variable check_frame_counter  : integer range 0 to kCheckFrameLength-1;
     variable num_collapsed        : integer range 0 to kCheckFrameLength-1;
@@ -182,6 +185,7 @@ begin
     end if;
   end process;
 
+  -- Initialization request latch (clkIndep domain) --
   u_init_gen : process(clkIndep)
   begin
     if(clkIndep'event and clkIndep = '1') then

@@ -5,7 +5,7 @@
 // 
 // Create Date: 04/03/2026 08:56:40 PM
 // Design Name: 
-// Module Name: TempReAdjust
+// Module Name: DynamicReAdjust
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
