@@ -1,5 +1,6 @@
 # Change log
 
+- 2026/10/09 (v3.2.1) Fix pulse busy handling and align HDL comments
 - 2026/07/31 (v3.2) Add the dynamic delay adjustment function
 - 2026/03/11 (v3.1.1) Bug fix of algorithm for IDELAY adjustment
 - 2026/02/25 (v3.1) Improve algorithm for IDELAY adjustment.-
