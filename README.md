@@ -2,7 +2,7 @@
 
 Official repository of MIKUMARI.
 
-Stable version: 3.2
+Stable version: 3.2.1
 
 [Change log](ChangeLog.md)
 

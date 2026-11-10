@@ -37,7 +37,7 @@ entity MikumariRx is
 
     pulseOut    : out std_logic;    -- Reproduced one-shot pulse output.
     pulseType   : out MikumariPulseType;  -- 3-bit short message accompanying the pulse.
-    pulseReg    : out MikumariHpmRegType; -- 4-bit additional message transferred by the pulse
+    pulseReg    : out MikumariHpmRegType; -- 4-bit additional pulse message; zero in Low-Latency mode.
 
     -- Back channel --
     instRx      : out MikumariBackChannelType;

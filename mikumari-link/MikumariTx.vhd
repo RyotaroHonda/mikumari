@@ -35,7 +35,7 @@ entity MikumariTx is
 
     pulseIn     : in std_logic;     -- Pulse input. Must be one-shot signal.
     pulseType   : in MikumariPulseType;  -- 3-bit short message to be sent with pulse.
-    pulseReg    : in MikumariHpmRegType; -- 4-bit additional message transferred by the pulse
+    pulseReg    : in MikumariHpmRegType; -- 4-bit additional pulse message; used only in High-Precision mode.
     busyPulseTx : out std_logic;    -- Under transmission of previous pulse. If high, pulseIn is ignored.
 
     -- Back channel --
@@ -82,6 +82,7 @@ architecture RTL of MikumariTx is
 
   -- pulse --
   signal pulse_in             : std_logic;
+  signal pulse_busy           : std_logic;
   signal reg_pulse_type       : EncodedPulseType;
   signal pulse_count          : std_logic_vector(kWidthPulseCount-1 downto 0);
   signal pulse_count_delay    : std_logic_vector(pulse_count'range);
@@ -195,8 +196,9 @@ begin
   end process;
 
   -- pulse Tx --
-  pulse_in      <= pulseIn;
-  busyPulseTx   <= tx_flag(kPulseReserve.index);
+  pulse_busy    <= tx_flag(kPulseReserve.index) or tx_flag(kPulseTx.index);
+  busyPulseTx   <= pulse_busy;
+  pulse_in      <= pulseIn and not pulse_busy;
 
   -- Cbt port --
   isKtypeOut    <= is_ktype_out;
@@ -394,7 +396,7 @@ begin
     pulse_ktype_char  <= reg_pulse_type & reg_pulse_count;
   end generate;
 
-  -- High-Precision Mode (default) --
+  -- High-Precision Mode --
   gen_pkc_hpm : if kHighPrecision = true generate
   begin
     pulse_message   <= pulse_count & pulseReg;

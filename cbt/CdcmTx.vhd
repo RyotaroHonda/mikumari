@@ -9,13 +9,14 @@ use mylib.defCDCM.all;
 -- == Clock network ==
 -- Master (recovery) clock ---> BUFG ---> clkPar
 -- Fast clock              ---> BUFG ---> clkSer
--- (Fast clock is 5x faster than master clock)
+-- (Fast clock is 5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
 -- Skew of these clocks must be adjusted.
 --
 -- selMode:
 --   Select Tx operation mode.
 --   "00": Normal mode. Transmit wfPattern.
---   "01": CDCM initialization mode. Transmit  B00001_11111
+--   "01": CDCM initialization mode. Transmit alternating kInitMCDCM and kInitPCDCM.
+--         CDCM-8 uses the central 8 bits of these patterns.
 --   "10": Idle mode. Transmit idle pattern of B00000_11111.
 --   "11": Disable Tx. Transmit all zero pattern.
 -- ----------------------------------------------------------------------------------
@@ -33,7 +34,7 @@ entity CdcmTx is
   (
     -- SYSTEM port --
     srst        : in std_logic; -- Asynchronous assert, synchronous de-assert reset. (active high)
-    clkSer      : in std_logic; -- From BUFG (5 x clkPar freq.)
+    clkSer      : in std_logic; -- From BUFG (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
     clkPar      : in std_logic; -- From BUFG
     selMode     : in TxModeType; -- Select operation mode (async)
     offsetTable : out SerdesOffsetType;

@@ -5,7 +5,7 @@
 //
 // Create Date: 09/17/2024 04:01:01 PM
 // Design Name:
-// Module Name: Cdcm8RxImpl
+// Module Name: Cdcm8RxImpl_US_verilog
 // Project Name:
 // Target Devices:
 // Tool Versions:
@@ -321,7 +321,7 @@ endgenerate
          .CASCADE("SLAVE_END"),
          .DELAY_FORMAT("TIME"),
          .DELAY_TYPE            ("VAR_LOAD"),              // FIXED, VARIABLE, or VAR_LOADABLE
-         .DELAY_VALUE           (kDELAY_VALUE),                  // 0 to 31
+         .DELAY_VALUE           (kDELAY_VALUE),                  // Initial delay in ps (DELAY_FORMAT = "TIME").
          .REFCLK_FREQUENCY       (kFreqRefClk),
          .SIM_DEVICE            ("ULTRASCALE_PLUS")
        )

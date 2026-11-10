@@ -12,7 +12,7 @@ use mylib.defCDCM.all;
 -- == Clock network ==
 -- Master (recovery) clock ---> BUFG ---> clkPar
 -- Fast clock              ---> BUFG ---> clkSer
--- (Fast clock is 5x/4x faster than master clock)
+-- (Fast clock is 5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
 -- Skew of these clocks must be adjusted.
 --
 --
@@ -49,14 +49,16 @@ entity CdcmRx_US is
     -- SYSTEM port --
     srst          : in std_logic; -- Reset logics driven by clkPar. Transceiver function reset. (active high)
     pwrOnRst      : in std_logic; -- Reset logics driven by clkIndep and clkIdelayRef. (active high)
-    clkSer        : in std_logic; -- From BUFG (5 x clkPar freq.)
+    clkSer        : in std_logic; -- From BUFG (5 x clkPar for CDCM-10; 4 x clkPar for CDCM-8)
     clkPar        : in std_logic; -- From BUFG
-    clkIdelayRef  : in std_logic; -- 200 MHz ref. clock.
+    clkIdelayRef  : in std_logic; -- IDELAYCTRL reference clock; frequency must match kFreqRefClk (MHz).
     initIn        : in std_logic; -- Re-do the initialization process. Sync with clkPar.
     tapValueIn    : in std_logic_vector(kWidthTap-1 downto 0); -- IDELAY TAP value input (active when kFixIdelayTap is true)
     firstBitPatt  : out CdcmPatternType; -- ISERDES output pattern after finishing the idelay adjustment
 
-    reqIdelayShift : in std_logic_vector(1 downto 0); -- "00": No shift. "01": Shift plus by 1 bit. "10": Shift minus by 1 bit. "11": Reserved.
+    reqIdelayShift : in std_logic_vector(1 downto 0); -- "00": No adjustment. "01": Increase delay by one step of tapValueOut.
+      -- "10": Decrease delay by one step of tapValueOut. "11": Reserved.
+      -- At the delay-range boundary, re-adjustment includes a bit-position shift.
     reqReAdjustOut  : out std_logic; -- Request signal to the CbtRx to start the re-adjustment process
     permitReadjust  : in std_logic;  -- Permission from CbtRx for the re-adjustment process. Re-adjustment process starts when this signal is high at the rising edge of clkPar
     doneReAdjustOut : out std_logic; -- Indicate that the idelay re-adjustment process is done.
@@ -78,7 +80,11 @@ entity CdcmRx_US is
     -- CDCM input ports
     RXP           : in std_logic;  -- Connect to TOPLEVEL port
     RXN           : in std_logic;  -- Connect to TOPLEVEL port
-    modClock      : out std_logic; -- Modulated clock. Output from IBUFDS (before IDELAYE2)
+    modClock      : out std_logic; -- Clock monitor output. For CDCM-8:
+                                  -- kBitslice0=false: IBUFDS output; true: virtual clock.
+                                  -- Virtual clock toggles on clkPar edges when ISERDES output
+                                  -- is neither all zeros nor all ones.
+                                  -- For CDCM-10: IBUFDS output (before IDELAYE2).
     payloadOut    : out std_logic_vector(kPaylowdPos'length-1 downto 0) -- CDCM payload
   );
 end CdcmRx_US;

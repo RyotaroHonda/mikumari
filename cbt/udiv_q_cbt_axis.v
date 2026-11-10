@@ -1,8 +1,12 @@
 // ============================================================================
 // udiv_q_axis.v  (AXIS-like, separate ports)
 // Unsigned DW/DW -> QI.QF fixed-point quotient
-// - No DSPs (shift/compare/sub only), latency = QI+QF cycles
-// - Input handshake:  s_axis_tvalid & s_axis_tready
+// - No DSPs (shift/compare/sub only).
+// - Latency from input request to m_axis_tvalid assertion = QI+QF+3 cycles.
+//   Output handshake may occur later, depending on m_axis_tready.
+// - Input request: s_axis_tvalid & s_axis_tready.
+//   Operands are not latched by this wrapper; keep them stable through core completion.
+//   Do not issue another request during start/result pipeline stages, even if ready is high.
 // - Output handshake: m_axis_tvalid & m_axis_tready  
 // ============================================================================
 module udiv_q_cbt_axis #(
@@ -33,16 +37,17 @@ module udiv_q_cbt_axis #(
     wire [QF-1:0]       core_qf;
     wire [DW-1:0]       core_rem;
 
-    // Input ready when core is idle and no pending output
+    // Ready reflects core_busy and out_hold_valid only.
+    // It does not cover the core_start/core_valid pipeline stages.
     reg out_hold_valid;
     assign s_axis_tready = (!core_busy) && (!out_hold_valid);
 
-    // Start pulse on accept
+    // Register the start request; operands are connected directly to the core.
     wire in_fire = s_axis_tvalid && s_axis_tready;
     reg  core_start;
     always @(posedge clk) begin
         if (rst) core_start <= 1'b0;
-        else     core_start <= in_fire; // 1-cycle pulse
+        else     core_start <= in_fire; // Registered input request
     end
 
     // Core divider (iterative, truncate fractional part)

@@ -21,7 +21,7 @@ entity Cdcm8RxImpl_US is
     kSelCount     : integer:= 3; -- Selects the counter to use for IDELAYCTRL
     kDiffTerm     : boolean:= TRUE;
     kRxPolarity   : boolean:= FALSE;    -- If true, inverts Rx polarity
-    kIoStandard   : string:= "LVDS";    -- IOSTANDARD of OBUFDS
+    kIoStandard   : string:= "LVDS";    -- IOSTANDARD of the differential input buffer
     kIoDelayGroup : string:= "cdcm_rx"; -- IODELAY_GROUP
     kFreqRefClk   : real;            -- Frequency of refclk for IDELAYCTRL (MHz).
     kBitslice0    : boolean   -- This is TRUE if the RXP and RXN ports are connected to BITSLICE_0.
@@ -50,8 +50,8 @@ entity Cdcm8RxImpl_US is
     
     tapIn             : in  std_logic_vector(4 downto 0);
     tapOut            : out std_logic_vector(4 downto 0);
-    CNTVALUEOUT       : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Master) CNTVALUEOUT
-    CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Initial value of IDELAY (Slave) CNTVALUEOUT
+    CNTVALUEOUT       : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Current IDELAYE3 master counter value, sampled on clkDivIn.
+    CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0);  -- Current ODELAYE3 slave counter value, sampled on clkDivIn.
 
     enVtc             : in  std_logic;
 
@@ -63,8 +63,8 @@ entity Cdcm8RxImpl_US is
 
     readyCtrl         : in std_logic;
     idelayInitDoneOut : out std_logic;
-    cntValueOutLevel2Out      : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-    cntValueSlaveOutLevel2Out : out std_logic_vector(kCNTVALUEbit-1 downto 0)
+    cntValueOutLevel2Out      : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Master counter value captured and held during initialization.
+    cntValueSlaveOutLevel2Out : out std_logic_vector(kCNTVALUEbit-1 downto 0) -- Slave counter value captured and held during initialization.
   );
 end Cdcm8RxImpl_US;
 
@@ -105,16 +105,16 @@ architecture RTL of Cdcm8RxImpl_US is
         cdcmUpRx          : in std_logic;
         tapIn           : in  std_logic_vector(4 downto 0);
         tapOut          : out std_logic_vector(4 downto 0);
-        CNTVALUEOUT     : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-        CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0);
+        CNTVALUEOUT     : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Current IDELAYE3 master counter value, sampled on clkDivIn.
+        CNTVALUEOUT_slave : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Current ODELAYE3 slave counter value, sampled on clkDivIn.
         enVtc           : in  std_logic;
         clkIn           : in  std_logic;
         clkDivIn       : in  std_logic;
         ioReset         : in  std_logic;
         readyCtrl       : in std_logic;
         idelayInitDoneOut : out std_logic;
-        cntValueOutLevel2Out      : out std_logic_vector(kCNTVALUEbit-1 downto 0);
-        cntValueSlaveOutLevel2Out : out std_logic_vector(kCNTVALUEbit-1 downto 0)
+        cntValueOutLevel2Out      : out std_logic_vector(kCNTVALUEbit-1 downto 0); -- Master counter value captured and held during initialization.
+        cntValueSlaveOutLevel2Out : out std_logic_vector(kCNTVALUEbit-1 downto 0) -- Slave counter value captured and held during initialization.
     );
    end component;
 

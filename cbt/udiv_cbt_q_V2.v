@@ -1,7 +1,8 @@
 
 // ============================================================================
 // udiv_q.v  (core)
-// Unsigned DW/DW -> QI.QF (truncate). Latency = QI+QF cycles.
+// Unsigned DW/DW -> QI.QF (truncate).
+// Latency from accepted start to valid assertion = QI+QF+1 cycles.
 // No DSPs; shift/compare/sub only. Verilog-2001 friendly.
 // ============================================================================
 module udiv_cbt_q_V2 #(

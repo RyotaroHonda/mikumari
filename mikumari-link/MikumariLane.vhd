@@ -35,7 +35,7 @@ entity MikumariLane is
 
     pulseIn       : in std_logic;          -- Pulse input. Must be one-shot signal.
     pulseTypeTx   : in MikumariPulseType;  -- 3-bit short message to be sent with pulse.
-    pulseRegTx    : in MikumariHpmRegType; -- 4-bit additional message transferred by the pulse
+    pulseRegTx    : in MikumariHpmRegType; -- 4-bit additional pulse message; used only in High-Precision mode.
     busyPulseTx   : out std_logic;         -- Under transmission of previous pulse. If high, pulseIn is ignored.
 
     -- Cbt ports --
@@ -56,7 +56,7 @@ entity MikumariLane is
 
     pulseOut    : out std_logic;           -- Reproduced one-shot pulse output.
     pulseTypeRx : out MikumariPulseType;   -- 3-bit short message accompanying the pulse.
-    pulseRegRx  : out MikumariHpmRegType;  -- 4-bit additional message transferred by the pulse
+    pulseRegRx  : out MikumariHpmRegType;  -- 4-bit additional pulse message; zero in Low-Latency mode.
 
     -- Cbt ports --
     isKtypeIn   : in std_logic; --

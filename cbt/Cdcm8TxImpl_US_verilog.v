@@ -5,7 +5,7 @@
 //
 // Create Date: 09/30/2024 06:45:04 PM
 // Design Name:
-// Module Name: Cdcm8TxImpl
+// Module Name: Cdcm8TxImpl_US_verilog
 // Project Name:
 // Target Devices:
 // Tool Versions:
