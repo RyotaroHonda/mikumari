@@ -19,7 +19,7 @@ Both MMCMs output:
 ## Usage
 
 1. Add the two `.v` files of **one** of the `mmcm_cdcm_input*` directories, and `BUFG_CLR_DEV.v`.
-2. Add the XDC in that directory (read it before your timing XDC).
+2. Add the XDC in that directory (read it after the MMCM input clock's `create_clock`).
    Edit the instance name in the XDC to match your instance path.
 3. Connect `BUFG_CLR_DEV`:
    - `clk_CLR` <- `clk_slow_CLR`, `mmcm_cdcm_locked` <- `locked`

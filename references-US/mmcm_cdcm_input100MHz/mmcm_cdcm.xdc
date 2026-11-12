@@ -1,7 +1,7 @@
 ################################################################################
 # mmcm_cdcm.xdc  -- Constraints for mmcm_cdcm (500 MHz)
 #
-# Add this file to your project (read it before your timing XDC).
+# Add this file to your project (read it after the MMCM input clock's create_clock).
 # Edit "u_mmcm_cdcm" to match your instance path.
 #
 # set_clock_groups is not included. Add it in your XDC as needed, e.g.:
